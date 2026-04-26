@@ -96,6 +96,69 @@ function getBg(bm: Bookmark): string {
   return bm.bg && bm.bg.length > 0 ? bm.bg : autoColor(bm.name)
 }
 
+// 粘贴 JSON 对话框:多行 TextArea + 解析/取消按钮。
+// TextArea 长按系统会出"粘贴"菜单,鸿蒙 ArkUI 原生支持,不需要额外申请权限。
+@CustomDialog
+struct PasteJsonDialog {
+  controller: CustomDialogController
+  @State text: string = ''
+  onConfirm: (text: string) => void = (text: string) => {}
+
+  build() {
+    Column() {
+      Text('粘贴书签 JSON')
+        .fontSize(17)
+        .fontWeight(FontWeight.Medium)
+        .fontColor('#1F2937')
+      Text('在下方粘贴(长按文本框可调出系统粘贴菜单)')
+        .fontSize(11)
+        .fontColor('#9CA3AF')
+        .margin({ top: 6, bottom: 12 })
+
+      TextArea({ text: this.text, placeholder: '在此粘贴 JSON…' })
+        .fontSize(12)
+        .fontFamily('monospace')
+        .placeholderColor('#9CA3AF')
+        .fontColor('#1F2937')
+        .height(240)
+        .width('100%')
+        .borderRadius(10)
+        .backgroundColor('#F8FAFC')
+        .padding(12)
+        .onChange((v: string) => { this.text = v })
+
+      Row({ space: 10 }) {
+        Button('取消')
+          .fontSize(14)
+          .fontColor('#6B7280')
+          .backgroundColor('#F3F4F6')
+          .height(42)
+          .layoutWeight(1)
+          .borderRadius(10)
+          .onClick(() => { this.controller.close() })
+        Button('解析并导入')
+          .fontSize(14)
+          .fontColor(Color.White)
+          .backgroundColor('#3B82F6')
+          .height(42)
+          .layoutWeight(1)
+          .borderRadius(10)
+          .onClick(() => {
+            const t: string = this.text
+            this.controller.close()
+            this.onConfirm(t)
+          })
+      }
+      .width('100%')
+      .margin({ top: 14 })
+    }
+    .padding(20)
+    .width(360)
+    .backgroundColor(Color.White)
+    .borderRadius(18)
+  }
+}
+
 @Component
 export struct BookmarksTab {
   @State groups: BookmarkGroup[] = DEFAULT_GROUPS.slice()
@@ -134,27 +197,26 @@ export struct BookmarksTab {
     }
   }
 
-  async importBookmarks() {
+  // 共享:解析 JSON 文本 + 落盘 + 刷新 UI。
+  // 粘贴入口和文件入口最终都汇到这里。
+  async importFromText(text: string) {
+    const trimmed = text.trim()
+    if (!trimmed) {
+      showToast(this.getUIContext(), '内容为空', 1500)
+      return
+    }
+    let data: BookmarksFile
     try {
-      const dp = new picker.DocumentViewPicker()
-      const uris = await dp.select({ fileSuffixFilters: ['.json'] })
-      if (!uris || !uris.length) return
-      const fUri = new fileUri.FileUri(uris[0])
-      const text = await fs.readText(fUri.path)
-
-      let data: BookmarksFile
-      try {
-        data = JSON.parse(text) as BookmarksFile
-      } catch (parseErr) {
-        showToast(this.getUIContext(), 'JSON 解析失败', 2400)
-        return
-      }
-      if (!data || !data.groups || data.groups.length === 0) {
-        showToast(this.getUIContext(), '格式错误:缺少 groups 字段或为空', 2800)
-        return
-      }
-
-      // 写入沙箱(整文件覆盖)
+      data = JSON.parse(trimmed) as BookmarksFile
+    } catch (parseErr) {
+      showToast(this.getUIContext(), 'JSON 解析失败,请检查格式', 2800)
+      return
+    }
+    if (!data || !data.groups || data.groups.length === 0) {
+      showToast(this.getUIContext(), '格式错误:缺少 groups 字段或为空', 2800)
+      return
+    }
+    try {
       const path = this.getStorePath()
       const fd = await fs.open(path, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE | fs.OpenMode.TRUNC)
       try {
@@ -162,8 +224,6 @@ export struct BookmarksTab {
       } finally {
         await fs.close(fd)
       }
-
-      // 重新加载到 UI
       this.groups = DEFAULT_GROUPS.concat(data.groups)
       this.hasImported = true
 
@@ -174,10 +234,39 @@ export struct BookmarksTab {
       }
       showToast(this.getUIContext(), `已导入 ${data.groups.length} 个分组 / ${totalBm} 条书签`, 2400)
     } catch (e) {
-      showToast(this.getUIContext(), `导入失败: ${JSON.stringify(e)}`, 3000)
-      hilog.error(0x0000, TAG, 'import fail %{public}s', JSON.stringify(e) ?? '')
+      showToast(this.getUIContext(), `保存失败: ${JSON.stringify(e)}`, 3000)
+      hilog.error(0x0000, TAG, 'save bookmarks fail %{public}s', JSON.stringify(e) ?? '')
     }
   }
+
+  // 入口 1:从文件选取
+  async importFromFile() {
+    try {
+      const dp = new picker.DocumentViewPicker()
+      const uris = await dp.select({ fileSuffixFilters: ['.json'] })
+      if (!uris || !uris.length) return
+      const fUri = new fileUri.FileUri(uris[0])
+      const text = await fs.readText(fUri.path)
+      await this.importFromText(text)
+    } catch (e) {
+      showToast(this.getUIContext(), `读取文件失败: ${JSON.stringify(e)}`, 3000)
+      hilog.error(0x0000, TAG, 'pick file fail %{public}s', JSON.stringify(e) ?? '')
+    }
+  }
+
+  // 入口 2:粘贴 JSON 文本(打开对话框,用户长按粘贴)
+  importFromPaste() {
+    this.pasteDialog.open()
+  }
+
+  private pasteDialog: CustomDialogController = new CustomDialogController({
+    builder: PasteJsonDialog({
+      onConfirm: (text: string) => { this.importFromText(text) }
+    }),
+    alignment: DialogAlignment.Center,
+    autoCancel: true,
+    customStyle: false
+  })
 
   async clearImported() {
     try {
@@ -263,7 +352,10 @@ export struct BookmarksTab {
           .height(30)
           .borderRadius(8)
           .padding({ left: 12, right: 12 })
-          .onClick(() => this.importBookmarks())
+          .bindMenu([
+            { value: '粘贴 JSON 文本', action: () => this.importFromPaste() },
+            { value: '选取 JSON 文件', action: () => this.importFromFile() },
+          ])
       }
       .width('92%')
       .padding({ top: 14, bottom: 8 })
@@ -308,14 +400,22 @@ export struct BookmarksTab {
                 .fontSize(11)
                 .fontColor('#9CA3AF')
                 .fontWeight(FontWeight.Medium)
-              Text('私有书签(公司/家里 等)请保存为 JSON 文件后,点右上角"+ 导入"')
+              Text('私有书签(公司/家里 等)点右上角"+ 导入":')
                 .fontSize(11)
                 .fontColor('#9CA3AF')
                 .margin({ top: 4 })
-              Text('格式参考仓库 docs/bookmarks.example.json')
+              Text('• 粘贴 JSON 文本(微信/飞书发的,长按粘贴)')
                 .fontSize(11)
                 .fontColor('#9CA3AF')
                 .margin({ top: 2 })
+              Text('• 选取 JSON 文件(本地保存的 .json)')
+                .fontSize(11)
+                .fontColor('#9CA3AF')
+                .margin({ top: 2 })
+              Text('格式参考仓库 docs/bookmarks.example.json')
+                .fontSize(11)
+                .fontColor('#9CA3AF')
+                .margin({ top: 6 })
             }
             .width('100%')
             .padding(14)
