@@ -15,70 +15,180 @@ export struct VpnItem {
   @Prop fullPath: string = ''
   @State display: boolean = false
   @State isOn: boolean = false
+  @State username: string = ''
+  @State password: string = ''
+  @State busy: boolean = false
+
+  // 检测配置是否要求账号密码登录
+  needsAuth(): boolean {
+    return /^auth-user-pass\s*$/m.test(this.cfg)
+  }
 
   build() {
     Column() {
+      // 顶部行: 状态点 + 名字 / 状态文 + Toggle + 展开按钮
       Row() {
-        Text(this.name)
-        Button(this.display ? 'Hide' : 'Show').onClick(() => {
-          this.display = !this.display
-        }).buttonStyle(ButtonStyleMode.TEXTUAL).position({ right: 0 })
-      }.width('90%').height(30)
-      .margin({ top: 2, bottom: 2 })
+        Circle({ width: 10, height: 10 })
+          .fill(this.isOn ? '#22C55E' : '#9CA3AF')
+          .margin({ right: 10 })
 
+        Column() {
+          Text(this.name)
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#1F2937')
+          Text(this.isOn ? 'Connected' : (this.needsAuth() ? 'Auth required' : 'Idle'))
+            .fontSize(11)
+            .fontColor(this.isOn ? '#22C55E' : '#6B7280')
+            .margin({ top: 2 })
+        }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+
+        Toggle({ type: ToggleType.Switch, isOn: this.isOn })
+          .selectedColor('#3B82F6')
+          .enabled(!this.busy)
+          .onChange(async (isOn) => {
+            if (this.busy) return
+            this.isOn = isOn
+            if (isOn) {
+              if (this.needsAuth() && (!this.username || !this.password)) {
+                showToast(this.getUIContext(), '请先展开并填写用户名 / 密码', 2200)
+                this.isOn = false
+                return
+              }
+              this.busy = true
+              await this.startVpn()
+              this.busy = false
+            } else {
+              this.busy = true
+              await this.stopVpn()
+              this.busy = false
+            }
+          })
+
+        Button(this.display ? '收起' : '展开')
+          .fontSize(13)
+          .fontColor('#3B82F6')
+          .backgroundColor(Color.Transparent)
+          .height(32)
+          .margin({ left: 8 })
+          .onClick(() => { this.display = !this.display })
+      }
+      .width('100%')
+      .padding({ left: 14, right: 10, top: 12, bottom: 12 })
+
+      // 展开区域: 账号密码 / 配置内容 / 保存按钮
       if (this.display) {
-        Row() {
-          TextArea({ text: this.cfg }).onChange((value) => {
-            this.cfg = value;
-          }).width('100%')
-        }.width('90%').height(200)
-        .margin({ top: 2, bottom: 2 })
+        Divider().color('#E5E7EB').margin({ left: 14, right: 14 })
+
+        if (this.needsAuth()) {
+          Column() {
+            Text('登录凭据')
+              .fontSize(13)
+              .fontColor('#6B7280')
+              .fontWeight(FontWeight.Medium)
+              .margin({ top: 12, bottom: 8 })
+
+            TextInput({ placeholder: '用户名', text: this.username })
+              .placeholderColor('#9CA3AF')
+              .fontSize(15)
+              .height(42)
+              .borderRadius(8)
+              .backgroundColor('#F9FAFB')
+              .padding({ left: 12, right: 12 })
+              .margin({ bottom: 8 })
+              .onChange((v) => { this.username = v })
+
+            TextInput({ placeholder: '密码', text: this.password })
+              .type(InputType.Password)
+              .placeholderColor('#9CA3AF')
+              .fontSize(15)
+              .height(42)
+              .borderRadius(8)
+              .backgroundColor('#F9FAFB')
+              .padding({ left: 12, right: 12 })
+              .onChange((v) => { this.password = v })
+          }
+          .alignItems(HorizontalAlign.Start)
+          .width('100%')
+          .padding({ left: 14, right: 14 })
+        }
+
+        Column() {
+          Text('OpenVPN 配置')
+            .fontSize(13)
+            .fontColor('#6B7280')
+            .fontWeight(FontWeight.Medium)
+            .margin({ top: 12, bottom: 8 })
+
+          TextArea({ text: this.cfg })
+            .fontSize(12)
+            .fontFamily('monospace')
+            .height(160)
+            .borderRadius(8)
+            .backgroundColor('#F9FAFB')
+            .padding(10)
+            .onChange((value) => { this.cfg = value })
+        }
+        .alignItems(HorizontalAlign.Start)
+        .width('100%')
+        .padding({ left: 14, right: 14 })
 
         Row() {
-          Toggle({ type: ToggleType.Switch, isOn: this.isOn })
-            .onChange(async (isOn) => {
-              this.isOn = isOn
-              if (isOn) {
-                await this.startVpn()
-              } else {
-                await this.stopVpn()
+          Button('保存修改')
+            .fontSize(14)
+            .fontColor(Color.White)
+            .backgroundColor('#3B82F6')
+            .height(38)
+            .borderRadius(8)
+            .layoutWeight(1)
+            .onClick(async () => {
+              try {
+                const fd = await fs.open(this.fullPath, fs.OpenMode.TRUNC | fs.OpenMode.READ_WRITE)
+                await fs.write(fd.fd, this.cfg)
+                await fs.close(fd)
+                showToast(this.getUIContext(), '配置已保存', 1200);
+              } catch (e) {
+                showToast(this.getUIContext(), `保存失败: ${JSON.stringify(e)}`, 2400);
+                hilog.error(0x0000, TAG, 'SaveBtnErr: %{public}s', JSON.stringify(e));
               }
             })
-
-          Button('Save').onClick(async () => {
-            try {
-              const fd = await fs.open(this.fullPath, fs.OpenMode.TRUNC | fs.OpenMode.READ_WRITE)
-              await fs.write(fd.fd, this.cfg)
-              await fs.close(fd)
-              showToast(this.getUIContext(), 'Save Success', 1000);
-            } catch (e) {
-              showToast(this.getUIContext(), `Save Failed: ${JSON.stringify(e)}`, 2000);
-              hilog.error(0x0000, TAG, 'SaveBtnErr: %{public}s', JSON.stringify(e));
-            }
-          }).fontSize(24).margin({ left: 5 })
-        }
+        }.width('100%').padding({ left: 14, right: 14, top: 12, bottom: 14 })
       }
     }
+    .width('92%')
+    .margin({ top: 6, bottom: 6 })
+    .backgroundColor(Color.White)
+    .borderRadius(14)
+    .shadow({ radius: 8, color: '#0A000000', offsetY: 2 })
   }
 
   async startVpn() {
     try {
-      await vpnExt.startVpnExtensionAbility({ bundleName, abilityName, parameters: { cfg: this.cfg }})
-      showToast(this.getUIContext(), 'start vpnExt Success', 2000);
+      await vpnExt.startVpnExtensionAbility({
+        bundleName,
+        abilityName,
+        parameters: {
+          cfg: this.cfg,
+          username: this.username,
+          password: this.password
+        }
+      })
+      showToast(this.getUIContext(), 'VPN 已启动', 1500);
       hilog.info(0x0000, TAG, '%{public}s', 'start vpnExt Success');
     } catch (err) {
-      showToast(this.getUIContext(), 'start vpnExt Fail: ' + JSON.stringify(err), 2000);
+      showToast(this.getUIContext(), '启动失败: ' + JSON.stringify(err), 2400);
       hilog.error(0x0000, TAG, 'start vpnExt Fail %{public}s', JSON.stringify(err) ?? '');
+      this.isOn = false
     }
   }
 
   async stopVpn() {
     try {
       await vpnExt.stopVpnExtensionAbility({ bundleName, abilityName })
-      showToast(this.getUIContext(), 'stop vpnExt Success', 2000);
+      showToast(this.getUIContext(), 'VPN 已停止', 1500);
       hilog.info(0x0000, TAG, '%{public}s', 'stop vpnExt Success');
     } catch (err) {
-      showToast(this.getUIContext(), 'stop vpnExt Fail: ' + JSON.stringify(err), 2000);
+      showToast(this.getUIContext(), '停止失败: ' + JSON.stringify(err), 2400);
       hilog.error(0x0000, TAG, 'stop vpnExt Fail %{public}s', JSON.stringify(err) ?? '');
     }
   }

@@ -34,7 +34,9 @@ export default class OvpnExtAbility extends VpnExtensionAbility {
       const bi = await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
       bundleName = bi.name;
       this.vpnConfig = want.parameters.cfg as string
-      this.SetupVpn();
+      const username = (want.parameters.username || '') as string
+      const password = (want.parameters.password || '') as string
+      this.SetupVpn(username, password);
     } catch (e) {
       const msg = JSON.stringify(e)
       hilog.error(0x0000, TAG, `readTextSync Err: ${msg}`);
@@ -66,7 +68,7 @@ export default class OvpnExtAbility extends VpnExtensionAbility {
     }, () => hilog.debug(0x0000, TAG, `publisher event DESTROY`))
   }
 
-  SetupVpn() {
+  SetupVpn(username: string, password: string) {
     hilog.info(0x0000, TAG, '%{public}s', 'vpn SetupVpn');
     vpn_client.startVpn(this.vpnConfig, (socketFd: number) => {
       this.Protect(socketFd)
@@ -80,7 +82,7 @@ export default class OvpnExtAbility extends VpnExtensionAbility {
         data: info
       }, () => {
       })
-    }, this.context.filesDir);
+    }, this.context.filesDir, username, password);
   }
 
   Protect(socketFd: number) {

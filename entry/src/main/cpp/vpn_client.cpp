@@ -380,7 +380,7 @@ static std::string GetStringFromValueUtf8(napi_env env, napi_value value, size_t
 }
 
 static napi_value StartVpn(napi_env env, napi_callback_info info) {
-    const size_t numArgs = 5;
+    const size_t numArgs = 7;
     size_t argc = numArgs;
     napi_value args[numArgs] = {nullptr};
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
@@ -390,6 +390,8 @@ static napi_value StartVpn(napi_env env, napi_callback_info info) {
     napi_value cb_tun_fn = args[2];
     napi_value cb_connected_fn = args[3];
     files_dir = GetStringFromValueUtf8(env, args[4], 256);
+    std::string username = GetStringFromValueUtf8(env, args[5], 256);
+    std::string password = GetStringFromValueUtf8(env, args[6], 1024);
 
     napi_value protect_name;
     napi_create_string_utf8(env, "ProtectSocket", NAPI_AUTO_LENGTH, &protect_name);
@@ -440,6 +442,20 @@ static napi_value StartVpn(napi_env env, napi_callback_info info) {
         NETMANAGER_VPN_LOGE("解析配置错误: %{public}s", evCfg.message.c_str());
         napi_create_string_utf8(env, evCfg.message.c_str(), evCfg.message.length(), &rv);
         return rv;
+    }
+
+    // 配置含 auth-user-pass 时由 ArkTS 端传入凭据，注入 openvpn3 ClientAPI
+    if (!evCfg.autologin && !username.empty()) {
+        openvpn::ClientAPI::ProvideCreds creds;
+        creds.username = username;
+        creds.password = password;
+        auto credsResult = client->provide_creds(creds);
+        if (credsResult.error) {
+            NETMANAGER_VPN_LOGE("provide_creds 错误: %{public}s", credsResult.message.c_str());
+            napi_create_string_utf8(env, credsResult.message.c_str(), credsResult.message.length(), &rv);
+            return rv;
+        }
+        NETMANAGER_VPN_LOGI("provide_creds OK, username=%{public}s", username.c_str());
     }
 
     std::thread t([]() {
