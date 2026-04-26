@@ -7,12 +7,21 @@ const TAG: string = '[PageBrowser]'
 
 @Entry
 @Component
+interface BrowserParams {
+  url?: string
+}
+
 struct Browser {
   private controller: webview.WebviewController = new webview.WebviewController();
   @State url: string = 'https://www.google.com/';
 
   async aboutToAppear() {
     webview.WebviewController.setWebDebuggingAccess(true);
+    // 来自 BookmarksTab 的 router.pushUrl({ params: { url } })
+    const params = this.getUIContext().getRouter().getParams() as BrowserParams | undefined
+    if (params?.url) {
+      this.url = params.url
+    }
   }
 
   aboutToDisappear() {

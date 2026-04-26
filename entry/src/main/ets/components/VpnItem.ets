@@ -145,6 +145,8 @@ export struct VpnItem {
                 return
               }
               AppStorage.setOrCreate('vpn.busyName', this.name)
+              // 记下"上次使用"，供 HomeTab 大圆按钮直接 toggle
+              AppStorage.setOrCreate('vpn.lastUsedName', this.name)
               try {
                 await vpnExt.startVpnExtensionAbility({
                   bundleName,

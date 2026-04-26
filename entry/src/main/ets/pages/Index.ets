@@ -1,11 +1,12 @@
 import hilog from '@ohos.hilog';
 import { BUNDLE_NAME } from 'BuildProfile';
 import { connection } from '@kit.NetworkKit';
-import { picker, fileIo as fs, fileUri } from '@kit.CoreFileKit';
-import { BasicDataSource, showToast } from '../components/Common';
+import { showToast } from '../components/Common';
 import { BusinessError, commonEventManager } from '@kit.BasicServicesKit';
-import { VpnItem } from '../components/VpnItem';
-import { HeroStatus } from '../components/HeroStatus';
+import { HomeTab } from '../components/HomeTab';
+import { ConfigsTab } from '../components/ConfigsTab';
+import { LogsTab } from '../components/LogsTab';
+import { BookmarksTab } from '../components/BookmarksTab';
 
 const TAG: string = '[PageIndex]'
 
@@ -16,7 +17,8 @@ interface connectData {
 
 let ctx: UIContext
 
-// 模块级事件订阅：保留原有 toast 行为，并把状态镜像写入 AppStorage 给 Hero/VpnItem 复用
+// 模块级事件订阅：把 native 端的 CONNECTED/DESTROY/READ_CONFIG_ERR 镜像到 AppStorage，
+// HomeTab/VpnItem 通过 @StorageLink 自动响应。
 try {
   commonEventManager.createSubscriber({
     events: ['ovpn.READ_CONFIG_ERR', 'ovpn.CONNECTED', 'ovpn.DESTROY'],
@@ -37,7 +39,6 @@ try {
           const d = JSON.parse(s) as connectData;
           hilog.info(0x0000, TAG, `Connected: ${d.info}`);
           showToast(ctx, `已连接: ${d.info}`, 2400);
-          // 把 busyName 升格为 activeName，记录连接时间
           const busy = AppStorage.get<string>('vpn.busyName') ?? ''
           AppStorage.setOrCreate('vpn.activeName', busy)
           AppStorage.setOrCreate('vpn.connectedAt', Date.now())
@@ -63,255 +64,75 @@ try {
   hilog.error(0x0000, TAG, `createSubscriber failed, code is ${JSON.stringify(e)}`);
 }
 
-interface ItemData {
-  name: string
-  cfg: string
-  fullPath: string
-}
-
 @Entry
 @Component
 struct Index {
-  private data: BasicDataSource<ItemData> = new BasicDataSource<ItemData>();
-  @State configCount: number = 0;
-
-  getDir(): string {
-    return this.getUIContext().getHostContext()?.filesDir + '/ovpn'
-  }
+  @State currentTab: number = 0
+  private tabsController: TabsController = new TabsController()
 
   async aboutToAppear() {
     ctx = this.getUIContext()
-    // 初始化 AppStorage 默认值（首次访问 undefined 会让 @StorageLink 报错）
-    if (AppStorage.get<string>('vpn.activeName') === undefined) {
-      AppStorage.setOrCreate('vpn.activeName', '')
-    }
-    if (AppStorage.get<string>('vpn.busyName') === undefined) {
-      AppStorage.setOrCreate('vpn.busyName', '')
-    }
-    if (AppStorage.get<number>('vpn.connectedAt') === undefined) {
-      AppStorage.setOrCreate('vpn.connectedAt', 0)
-    }
-
-    const dir = this.getDir()
-    try {
-      await fs.mkdir(dir)
-    } catch (e) {
-    }
-    try {
-      const files = await fs.listFile(dir)
-      for (let name of files) {
-        const fullPath = dir + '/' + name
-        const cfg = await fs.readText(fullPath)
-        this.data.push({ name, cfg, fullPath })
-      }
-      this.configCount = this.data.totalCount()
-    } catch (e) {
-      console.error(e)
-    }
+    // 初始化 AppStorage 默认值
+    if (AppStorage.get<string>('vpn.activeName') === undefined) AppStorage.setOrCreate('vpn.activeName', '')
+    if (AppStorage.get<string>('vpn.busyName') === undefined) AppStorage.setOrCreate('vpn.busyName', '')
+    if (AppStorage.get<number>('vpn.connectedAt') === undefined) AppStorage.setOrCreate('vpn.connectedAt', 0)
+    if (AppStorage.get<string>('vpn.lastUsedName') === undefined) AppStorage.setOrCreate('vpn.lastUsedName', '')
   }
 
   @Builder
-  EmptyState() {
+  TabBarItem(label: string, idx: number, icon: Resource) {
     Column() {
-      Stack() {
-        Circle({ width: 88, height: 88 })
-          .fill('#EEF2FF')
-        Text('📂')
-          .fontSize(38)
-      }
-      Text('还没有配置')
-        .fontSize(15)
-        .fontColor('#374151')
-        .fontWeight(FontWeight.Medium)
-        .margin({ top: 16 })
-      Text('点击下方按钮导入 .ovpn 文件')
-        .fontSize(12)
-        .fontColor('#9CA3AF')
-        .margin({ top: 6 })
+      Image(icon)
+        .width(22)
+        .height(22)
+        .fillColor(this.currentTab === idx ? '#3B82F6' : '#9CA3AF')
+      Text(label)
+        .fontSize(11)
+        .fontColor(this.currentTab === idx ? '#3B82F6' : '#6B7280')
+        .fontWeight(this.currentTab === idx ? FontWeight.Medium : FontWeight.Normal)
+        .margin({ top: 3 })
     }
     .width('100%')
-    .padding({ top: 32, bottom: 32 })
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
   }
-
-  // 注意：ArkTS @Builder 把 Resource ($r(...)) 当参数透传时，编译器静态校验失败会报
-  // "Unknown resource name"。所以下面三个次级按钮在 build() 里直接内联写，不抽 Builder。
 
   build() {
     Column() {
       // 顶部 wordmark
       Row() {
         Image($r('app.media.logo_splash'))
-          .height(26)
+          .height(22)
           .objectFit(ImageFit.Contain)
         Blank()
       }
       .width('92%')
-      .padding({ top: 14, bottom: 4 })
+      .padding({ top: 12, bottom: 4 })
 
-      // Hero 状态卡
-      HeroStatus()
+      // Tabs 容器
+      Tabs({ barPosition: BarPosition.End, controller: this.tabsController, index: this.currentTab }) {
+        TabContent() {
+          HomeTab()
+        }.tabBar(this.TabBarItem('连接', 0, $r('app.media.ic_shield')))
 
-      // 列表区头
-      Row() {
-        Text('VPN 配置')
-          .fontSize(13)
-          .fontColor('#6B7280')
-          .fontWeight(FontWeight.Medium)
-        Blank()
-        if (this.configCount > 0) {
-          Text(`${this.configCount}`)
-            .fontSize(11)
-            .fontColor('#6B7280')
-            .backgroundColor('#FFFFFF')
-            .borderRadius(10)
-            .padding({ left: 10, right: 10, top: 2, bottom: 2 })
-        }
+        TabContent() {
+          ConfigsTab()
+        }.tabBar(this.TabBarItem('配置', 1, $r('app.media.ic_settings')))
+
+        TabContent() {
+          LogsTab()
+        }.tabBar(this.TabBarItem('日志', 2, $r('app.media.ic_log')))
+
+        TabContent() {
+          BookmarksTab()
+        }.tabBar(this.TabBarItem('浏览器', 3, $r('app.media.ic_globe')))
       }
-      .width('92%')
-      .margin({ bottom: 6 })
-
-      // 列表 / 空状态
-      if (this.configCount > 0) {
-        List() {
-          LazyForEach(this.data, (item: ItemData) => {
-            ListItem() {
-              VpnItem(item)
-            }.width('100%')
-          })
-        }
-        .width('100%')
-        .layoutWeight(1)
-        .padding({ bottom: 4 })
-      } else {
-        Column() {
-          this.EmptyState()
-        }
-        .width('100%')
-        .layoutWeight(1)
-        .justifyContent(FlexAlign.Center)
-      }
-
-      // 底部操作区
-      Column() {
-        // 主操作 - 导入配置
-        Button() {
-          Row() {
-            Text('+')
-              .fontSize(20)
-              .fontColor(Color.White)
-              .fontWeight(FontWeight.Bold)
-            Text('导入 .ovpn 配置')
-              .fontSize(15)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(Color.White)
-              .margin({ left: 8 })
-          }
-        }
-        .width('92%')
-        .height(50)
-        .backgroundColor('#3B82F6')
-        .borderRadius(14)
-        .shadow({ radius: 14, color: '#3B82F644', offsetY: 6 })
-        .onClick(async () => {
-          try {
-            const dp = new picker.DocumentViewPicker();
-            const uris = await dp.select({ fileSuffixFilters: ['.ovpn'] })
-            if (!uris || !uris.length) {
-              return
-            }
-            const dir = this.getDir()
-            for (let uri of uris) {
-              const fUri = new fileUri.FileUri(uri)
-              const cfg = await fs.readText(fUri.path)
-              const fullPath = `${dir}/${fUri.name}`
-              const fd = await fs.open(fullPath, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE)
-              await fs.write(fd.fd, cfg)
-              await fs.close(fd)
-              this.data.push({ name: fUri.name, cfg, fullPath })
-            }
-            this.configCount = this.data.totalCount()
-          } catch (e) {
-            showToast(this.getUIContext(), `导入失败: ${JSON.stringify(e)}`, 4000);
-          }
-        })
-
-        // 次级操作三联（用自带的 SVG 矢量图标，避免依赖 SDK sys.symbol 资源）
-        Row({ space: 8 }) {
-          Column() {
-            Image($r('app.media.ic_log'))
-              .width(22)
-              .height(22)
-              .fillColor('#6B7280')
-            Text('日志')
-              .fontSize(11)
-              .fontColor('#374151')
-              .margin({ top: 4 })
-          }
-          .layoutWeight(1)
-          .height(60)
-          .justifyContent(FlexAlign.Center)
-          .borderRadius(12)
-          .backgroundColor('#FFFFFF')
-          .onClick(async () => {
-            try {
-              await this.getUIContext().getRouter().pushUrl({ url: 'pages/Log' })
-            } catch (e) {
-              showToast(this.getUIContext(), `打开日志失败: ${JSON.stringify(e)}`, 4000);
-            }
-          })
-
-          Column() {
-            Image($r('app.media.ic_trash'))
-              .width(22)
-              .height(22)
-              .fillColor('#6B7280')
-            Text('清空日志')
-              .fontSize(11)
-              .fontColor('#374151')
-              .margin({ top: 4 })
-          }
-          .layoutWeight(1)
-          .height(60)
-          .justifyContent(FlexAlign.Center)
-          .borderRadius(12)
-          .backgroundColor('#FFFFFF')
-          .onClick(async () => {
-            try {
-              await fs.truncate(this.getUIContext().getHostContext()?.filesDir + '/ovpn.log')
-              showToast(this.getUIContext(), '日志已清空', 1200);
-            } catch (e) {
-              showToast(this.getUIContext(), `清空失败: ${JSON.stringify(e)}`, 4000);
-            }
-          })
-
-          Column() {
-            Image($r('app.media.ic_globe'))
-              .width(22)
-              .height(22)
-              .fillColor('#6B7280')
-            Text('浏览器')
-              .fontSize(11)
-              .fontColor('#374151')
-              .margin({ top: 4 })
-          }
-          .layoutWeight(1)
-          .height(60)
-          .justifyContent(FlexAlign.Center)
-          .borderRadius(12)
-          .backgroundColor('#FFFFFF')
-          .onClick(async () => {
-            try {
-              await this.getUIContext().getRouter().pushUrl({ url: 'pages/Browser' })
-            } catch (e) {
-              showToast(this.getUIContext(), `打开失败: ${JSON.stringify(e)}`, 4000);
-            }
-          })
-        }
-        .width('92%')
-        .margin({ top: 12 })
-      }
-      .width('100%')
-      .padding({ bottom: 18 })
+      .layoutWeight(1)
+      .barWidth('100%')
+      .barHeight(64)
+      .barMode(BarMode.Fixed)
+      .scrollable(true)
+      .onChange((idx: number) => { this.currentTab = idx })
     }
     .width('100%')
     .height('100%')
