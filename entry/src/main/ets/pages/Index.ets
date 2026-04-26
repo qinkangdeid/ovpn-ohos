@@ -235,12 +235,11 @@ struct Index {
           }
         })
 
-        // 次级操作三联（直接内联，避免 @Builder 透传 Resource 失效）
+        // 次级操作三联（用 emoji 而非 SymbolGlyph，避免 SDK 系统符号资源缺失/重命名问题）
         Row({ space: 8 }) {
           Column() {
-            SymbolGlyph($r('sys.symbol.doc_plaintext'))
-              .fontSize(20)
-              .fontColor(['#6B7280'])
+            Text('📋')
+              .fontSize(22)
             Text('日志')
               .fontSize(11)
               .fontColor('#374151')
@@ -260,9 +259,8 @@ struct Index {
           })
 
           Column() {
-            SymbolGlyph($r('sys.symbol.trash'))
-              .fontSize(20)
-              .fontColor(['#6B7280'])
+            Text('🗑')
+              .fontSize(22)
             Text('清空日志')
               .fontSize(11)
               .fontColor('#374151')
@@ -283,9 +281,8 @@ struct Index {
           })
 
           Column() {
-            SymbolGlyph($r('sys.symbol.globe'))
-              .fontSize(20)
-              .fontColor(['#6B7280'])
+            Text('🌐')
+              .fontSize(22)
             Text('浏览器')
               .fontSize(11)
               .fontColor('#374151')
