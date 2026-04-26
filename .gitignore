@@ -8,3 +8,9 @@ oh_modules/
 .hvigor/
 dep-build/
 dep-ohos/
+
+# 私有书签：开发机本地备份的 bookmarks.json,防误提交
+# (App 运行时使用的副本在沙箱 filesDir/,不在仓库里)
+bookmarks.json
+bookmarks.local.json
+docs/bookmarks.private.json

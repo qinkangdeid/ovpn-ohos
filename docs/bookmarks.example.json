@@ -1,0 +1,25 @@
+{
+  "_comment": "导入到 ovpn-ohos 浏览器 tab 的快捷书签格式。把本文件改名/复制一份(比如 bookmarks.private.json),改完里面的 URL,放到手机存储,在 App 浏览器 tab 点 [+ 导入] 选这个文件即可。badge 和 bg 都可省略,省略时会按名字自动生成。导入会整文件覆盖之前导入的内容。默认组(网络检测/国内/国外)写死在代码里,不需要也无法在这里覆盖,这里只放你自己的私有组。",
+
+  "groups": [
+    {
+      "name": "公司",
+      "bookmarks": [
+        { "name": "GitLab",   "url": "https://gitlab.example.com",   "badge": "GL", "bg": "#FC6D26" },
+        { "name": "Wiki",     "url": "https://wiki.example.com",     "badge": "W",  "bg": "#3B82F6" },
+        { "name": "Jira",     "url": "https://jira.example.com",     "badge": "J",  "bg": "#0052CC" },
+        { "name": "OA",       "url": "https://oa.example.com" },
+        { "name": "Grafana",  "url": "https://grafana.example.com",  "badge": "G",  "bg": "#F46800" }
+      ]
+    },
+    {
+      "name": "家里",
+      "bookmarks": [
+        { "name": "RouterOS", "url": "http://192.168.15.1",   "badge": "R",  "bg": "#293239" },
+        { "name": "NAS",      "url": "http://192.168.15.10",  "badge": "N",  "bg": "#0066CC" },
+        { "name": "1Panel",   "url": "https://192.168.15.12", "badge": "1P", "bg": "#005FFE" },
+        { "name": "PVE",      "url": "https://192.168.15.20:8006", "badge": "PVE", "bg": "#E57000" }
+      ]
+    }
+  ]
+}
