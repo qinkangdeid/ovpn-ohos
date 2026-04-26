@@ -15,6 +15,7 @@
 
 #include "napi/native_api.h"
 #include "hilog/log.h"
+#include <cstdarg>
 #include <fstream>
 #include <iostream>
 #include <cstring>
@@ -72,11 +73,15 @@ static void diag_write_raw(const std::string &msg) {
 }
 
 // printf 风格的诊断 log：同时进 hilog 和 ovpn.log。
-// 注意：hilog 用 %{public}s 修饰，这里我们用普通 snprintf 预格式化再分发。
-template <typename... Args>
-static void diag(const char *fmt, Args... args) {
+// 用 __attribute__((format)) 让编译器在每个调用点静态校验格式串和参数；
+// 不能用模板版本，否则 -Wformat-nonliteral 会误报（看不到 fmt 是字面量）。
+__attribute__((format(printf, 1, 2)))
+static void diag(const char *fmt, ...) {
     char buf[2048];
-    snprintf(buf, sizeof(buf), fmt, args...);
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
     OH_LOG_Print(LOG_APP, LOG_INFO, 0x15b0, "NetMgrVpn", "vpn %{public}s", buf);
     diag_write_raw(buf);
 }
