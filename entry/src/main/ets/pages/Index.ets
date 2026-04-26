@@ -235,18 +235,20 @@ struct Index {
           }
         })
 
-        // 次级操作三联（用 emoji 而非 SymbolGlyph，避免 SDK 系统符号资源缺失/重命名问题）
+        // 次级操作三联（用自带的 SVG 矢量图标，避免依赖 SDK sys.symbol 资源）
         Row({ space: 8 }) {
           Column() {
-            Text('📋')
-              .fontSize(22)
+            Image($r('app.media.ic_log'))
+              .width(22)
+              .height(22)
+              .fillColor('#6B7280')
             Text('日志')
               .fontSize(11)
               .fontColor('#374151')
               .margin({ top: 4 })
           }
           .layoutWeight(1)
-          .height(56)
+          .height(60)
           .justifyContent(FlexAlign.Center)
           .borderRadius(12)
           .backgroundColor('#FFFFFF')
@@ -259,15 +261,17 @@ struct Index {
           })
 
           Column() {
-            Text('🗑')
-              .fontSize(22)
+            Image($r('app.media.ic_trash'))
+              .width(22)
+              .height(22)
+              .fillColor('#6B7280')
             Text('清空日志')
               .fontSize(11)
               .fontColor('#374151')
               .margin({ top: 4 })
           }
           .layoutWeight(1)
-          .height(56)
+          .height(60)
           .justifyContent(FlexAlign.Center)
           .borderRadius(12)
           .backgroundColor('#FFFFFF')
@@ -281,15 +285,17 @@ struct Index {
           })
 
           Column() {
-            Text('🌐')
-              .fontSize(22)
+            Image($r('app.media.ic_globe'))
+              .width(22)
+              .height(22)
+              .fillColor('#6B7280')
             Text('浏览器')
               .fontSize(11)
               .fontColor('#374151')
               .margin({ top: 4 })
           }
           .layoutWeight(1)
-          .height(56)
+          .height(60)
           .justifyContent(FlexAlign.Center)
           .borderRadius(12)
           .backgroundColor('#FFFFFF')
