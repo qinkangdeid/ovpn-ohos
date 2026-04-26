@@ -2,11 +2,19 @@ import hilog from '@ohos.hilog';
 import { BUNDLE_NAME } from 'BuildProfile';
 import { vpnExtension as vpnExt } from '@kit.NetworkKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
+import { preferences } from '@kit.ArkData';
 import { showToast } from '../components/Common';
 
 const TAG: string = '[ItemVpn]'
 const bundleName = BUNDLE_NAME
 const abilityName = 'OvpnExtAbility'
+const CREDS_PREF = 'vpn_creds'
+
+// 用户名密码持久化（plaintext 存 Preferences；不在系统 Keystore 里，权限隔离靠 App 沙箱）。
+// 后续可改 HUKS 加密存储，目前先满足"重启不丢"的最低需求。
+async function getCredsStore(ctx: Context): Promise<preferences.Preferences> {
+  return await preferences.getPreferences(ctx, { name: CREDS_PREF })
+}
 
 @Component
 export struct VpnItem {
@@ -23,6 +31,39 @@ export struct VpnItem {
   // 匹配裸 `auth-user-pass`（可带行尾 # 或 ; 注释，CRLF 行尾也兼容），排除 `auth-user-pass FILE` 这种从文件读凭据的形式
   needsAuth(): boolean {
     return /^auth-user-pass[ \t\r]*(?:[#;].*)?$/m.test(this.cfg)
+  }
+
+  aboutToAppear() {
+    this.loadCreds()
+  }
+
+  // 从 Preferences 加载之前保存的用户名密码（key 用 ovpn 文件名，避免不同 config 撞车）
+  async loadCreds() {
+    if (!this.needsAuth()) return
+    try {
+      const ctx = this.getUIContext().getHostContext()
+      if (!ctx) return
+      const store = await getCredsStore(ctx)
+      const u = await store.get(`${this.name}.user`, '') as string
+      const p = await store.get(`${this.name}.pass`, '') as string
+      if (u) this.username = u
+      if (p) this.password = p
+    } catch (e) {
+      hilog.error(0x0000, TAG, 'loadCreds err: %{public}s', JSON.stringify(e) ?? '')
+    }
+  }
+
+  async saveCreds() {
+    try {
+      const ctx = this.getUIContext().getHostContext()
+      if (!ctx) return
+      const store = await getCredsStore(ctx)
+      await store.put(`${this.name}.user`, this.username)
+      await store.put(`${this.name}.pass`, this.password)
+      await store.flush()
+    } catch (e) {
+      hilog.error(0x0000, TAG, 'saveCreds err: %{public}s', JSON.stringify(e) ?? '')
+    }
   }
 
   build() {
@@ -97,7 +138,7 @@ export struct VpnItem {
               .backgroundColor('#F9FAFB')
               .padding({ left: 12, right: 12 })
               .margin({ bottom: 8 })
-              .onChange((v) => { this.username = v })
+              .onChange((v) => { this.username = v; this.saveCreds() })
 
             TextInput({ placeholder: '密码', text: this.password })
               .type(InputType.Password)
@@ -107,7 +148,7 @@ export struct VpnItem {
               .borderRadius(8)
               .backgroundColor('#F9FAFB')
               .padding({ left: 12, right: 12 })
-              .onChange((v) => { this.password = v })
+              .onChange((v) => { this.password = v; this.saveCreds() })
           }
           .alignItems(HorizontalAlign.Start)
           .width('100%')

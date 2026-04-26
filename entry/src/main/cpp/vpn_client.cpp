@@ -51,6 +51,36 @@ std::mutex tun_mtx;
 std::condition_variable tun_cv;
 std::string files_dir;
 
+// 把所有诊断日志同时写到 hilog 和 ovpn.log 文件，方便用户"导出日志"后给我看完整流程。
+// 不再依赖每个 Client 实例自己的 logFd——避免 Client 销毁/重建时丢日志。
+static std::mutex g_diagMtx;
+static std::ofstream g_diagFd;
+
+static void diag_write_raw(const std::string &msg) {
+    std::lock_guard<std::mutex> lock(g_diagMtx);
+    if (!g_diagFd.is_open()) {
+        if (files_dir.empty()) return;
+        g_diagFd.open(files_dir + "/ovpn.log", std::ios::app);
+        if (!g_diagFd.is_open()) return;
+    }
+    auto now = std::time(nullptr);
+    char ts[80];
+    std::strftime(ts, sizeof(ts), "[%Y-%m-%d %H:%M:%S] ", std::localtime(&now));
+    g_diagFd << ts << msg;
+    if (msg.empty() || msg.back() != '\n') g_diagFd << '\n';
+    g_diagFd.flush();
+}
+
+// printf 风格的诊断 log：同时进 hilog 和 ovpn.log。
+// 注意：hilog 用 %{public}s 修饰，这里我们用普通 snprintf 预格式化再分发。
+template <typename... Args>
+static void diag(const char *fmt, Args... args) {
+    char buf[2048];
+    snprintf(buf, sizeof(buf), fmt, args...);
+    OH_LOG_Print(LOG_APP, LOG_INFO, 0x15b0, "NetMgrVpn", "vpn %{public}s", buf);
+    diag_write_raw(buf);
+}
+
 napi_value ArkTsTunCallBack(napi_env env, napi_callback_info info) {
     size_t argc = 1;
     napi_value v;
@@ -117,19 +147,12 @@ private:
 //     NetConn_HttpProxy tun_proxy_http;
     std::string tun_proxy_host;
     int tun_proxy_port;
-    std::ofstream logFd;
 
 public:
-    ~Client() {
-        if (logFd.is_open()) {
-            logFd.close();
-        }
-    }
-
     virtual bool pause_on_connection_timeout() override { return false; }
 
     virtual void event(const openvpn::ClientAPI::Event &e) override { // events delivered here
-        NETMANAGER_VPN_LOGI("ovpn event, name: %{public}s, info: %{public}s", e.name.c_str(), e.info.c_str());
+        diag("ovpn event, name: %s, info: %s", e.name.c_str(), e.info.c_str());
         if (e.name == "CONNECTED") {
             /*
             if (this->tun_proxy_http.port > 0) {
@@ -213,20 +236,11 @@ public:
 
     virtual void log(const openvpn::ClientAPI::LogInfo &l) override { // logging delivered here
         NETMANAGER_VPN_LOGI("%{public}s", l.text.c_str());
-        if (!logFd.is_open()) {
-            logFd.open(files_dir + "/ovpn.log", std::ios::app);
-            NETMANAGER_VPN_LOGI("%{public}s", "open ovpn.log");
-        }
-
-        auto now = std::time(nullptr);
-        char buf[80];
-        std::strftime(buf, sizeof(buf), "[%Y-%m-%d %H:%M:%S] ", std::localtime(&now));
-        logFd << buf << l.text;
-        logFd.flush();
+        diag_write_raw(l.text);
     }
 
     virtual bool socket_protect(openvpn_io::detail::socket_type socket, std::string remote, bool ipv6) override {
-        NETMANAGER_VPN_LOGI("socket_protect: %{public}d %{public}s", socket, remote.c_str());
+        diag("socket_protect: socket=%d remote=%s ipv6=%d", socket, remote.c_str(), ipv6 ? 1 : 0);
         auto fd = new openvpn_io::detail::socket_type(socket);
         napi_acquire_threadsafe_function(tsfn_protect);
         napi_call_threadsafe_function(tsfn_protect, fd, napi_tsfn_blocking);
@@ -238,7 +252,7 @@ public:
     virtual bool tun_builder_set_layer(int layer) override { return true; }
 
     virtual bool tun_builder_set_remote_address(const std::string &address, bool ipv6) override {
-        NETMANAGER_VPN_LOGI("tun_builder_set_remote_address: %{public}s ipv6=%{public}d", address.c_str(), ipv6);
+        diag("tun_builder_set_remote_address: %s ipv6=%d", address.c_str(), ipv6 ? 1 : 0);
         // socket_protect() 已经把到 VPN server 的 socket 标记为绕过 tun，不需要单独加 host bypass route。
         // 这里只记录一下方便排查，以后若发现 protect 不可靠可以走 JS 侧加 bypass。
         return true;
@@ -247,8 +261,8 @@ public:
     virtual bool tun_builder_add_address(const std::string &address, int prefix_length,
                                          const std::string &gateway, // optional
                                          bool ipv6, bool net30) override {
-        NETMANAGER_VPN_LOGI("tun_builder_add_address: %{public}s, gateway: %{public}s", address.c_str(),
-                            gateway.c_str());
+        diag("tun_builder_add_address: %s/%d gateway=%s ipv6=%d", address.c_str(), prefix_length,
+             gateway.c_str(), ipv6 ? 1 : 0);
         this->tun.addresses.push_back({
             .address = {.address = address, .family = ipv6 ? 2 : 1},
             .prefixLength = prefix_length,
@@ -268,8 +282,7 @@ public:
     // 我们必须自己展开成两条 /1 路由把默认路由抢进 tun。VPN server 真实 IP 的回环由 socket_protect() 防。
     // 上游 ovpn-ohos 把这个回调留空，导致 redirect-gateway 完全失效，必须在 ccd 里显式 push 每个 IP 段才能用。
     virtual bool tun_builder_reroute_gw(bool ipv4, bool ipv6, unsigned int flags) override {
-        NETMANAGER_VPN_LOGI("tun_builder_reroute_gw: ipv4=%{public}d ipv6=%{public}d flags=%{public}u",
-                            ipv4, ipv6, flags);
+        diag("tun_builder_reroute_gw: ipv4=%d ipv6=%d flags=%u", ipv4 ? 1 : 0, ipv6 ? 1 : 0, flags);
         if (ipv4) {
             this->tun.routes.push_back(RouteInfo{
                 .destination = {.address = {.address = "0.0.0.0", .family = 1}, .prefixLength = 1},
@@ -302,6 +315,8 @@ public:
     }
 
     virtual bool tun_builder_add_route(const std::string &address, int prefix_length, int metric, bool ipv6) override {
+        diag("tun_builder_add_route: %s/%d metric=%d ipv6=%d", address.c_str(), prefix_length, metric,
+             ipv6 ? 1 : 0);
         this->tun.routes.push_back(RouteInfo{
             .destination = {.address = {.address = address, .family = ipv6 ? 2 : 1}, .prefixLength = prefix_length},
             .gateway = this->tun_gw,
@@ -310,13 +325,15 @@ public:
         });
         return true;
     }
-    
+
     virtual bool tun_builder_set_dns_options(const openvpn::DnsOptions &dns) override {
         for (const auto& v : dns.search_domains) {
+            diag("tun_builder_set_dns_options: search_domain=%s", v.domain.c_str());
             this->tun.searchDomains.push_back(v.domain);
         }
         for (const auto& pair : dns.servers) {
             for (const auto& v : pair.second.addresses) {
+                diag("tun_builder_set_dns_options: dns_server=%s", v.address.c_str());
                 this->tun.dnsAddresses.push_back(v.address);
             }
         }
@@ -382,15 +399,15 @@ public:
         Json::StreamWriterBuilder writer;
         writer["indentation"] = ""; // Set the indentation to an empty string
         std::string v = Json::writeString(writer, json);
-        NETMANAGER_VPN_LOGI("tun_builder_establish: %{public}s", v.c_str());
+        diag("tun_builder_establish: %s", v.c_str());
 
         napi_acquire_threadsafe_function(tsfn_tun);
         napi_call_threadsafe_function(tsfn_tun, &v, napi_tsfn_blocking);
 
         std::unique_lock<std::mutex> lock(tun_mtx);
-        NETMANAGER_VPN_LOGI("TunMainWait");
+        diag("TunMainWait");
         tun_cv.wait(lock, []() { return tun_done; }); // 等待 Promise 完成
-        NETMANAGER_VPN_LOGI("TunMainFinished");
+        diag("TunMainFinished tun_fd=%d", tun_fd);
         return tun_fd;
     }
 };
@@ -421,6 +438,9 @@ static napi_value StartVpn(napi_env env, napi_callback_info info) {
     files_dir = GetStringFromValueUtf8(env, args[4], 256);
     std::string username = GetStringFromValueUtf8(env, args[5], 256);
     std::string password = GetStringFromValueUtf8(env, args[6], 1024);
+
+    diag("==== StartVpn ==== content_size=%zu username=%s has_password=%d files_dir=%s",
+         content.size(), username.c_str(), password.empty() ? 0 : 1, files_dir.c_str());
 
     napi_value protect_name;
     napi_create_string_utf8(env, "ProtectSocket", NAPI_AUTO_LENGTH, &protect_name);
@@ -467,8 +487,11 @@ static napi_value StartVpn(napi_env env, napi_callback_info info) {
     config.tunPersist = true;
 
     openvpn::ClientAPI::EvalConfig evCfg = client->eval_config(config);
+    diag("eval_config: autologin=%d remoteHost=%s remotePort=%s remoteProto=%s",
+         evCfg.autologin ? 1 : 0, evCfg.remoteHost.c_str(), evCfg.remotePort.c_str(),
+         evCfg.remoteProto.c_str());
     if (evCfg.error) {
-        NETMANAGER_VPN_LOGE("解析配置错误: %{public}s", evCfg.message.c_str());
+        diag("eval_config ERROR: %s", evCfg.message.c_str());
         napi_create_string_utf8(env, evCfg.message.c_str(), evCfg.message.length(), &rv);
         return rv;
     }
@@ -480,20 +503,21 @@ static napi_value StartVpn(napi_env env, napi_callback_info info) {
         creds.password = password;
         auto credsResult = client->provide_creds(creds);
         if (credsResult.error) {
-            NETMANAGER_VPN_LOGE("provide_creds 错误: %{public}s", credsResult.message.c_str());
+            diag("provide_creds ERROR: %s", credsResult.message.c_str());
             napi_create_string_utf8(env, credsResult.message.c_str(), credsResult.message.length(), &rv);
             return rv;
         }
-        NETMANAGER_VPN_LOGI("provide_creds OK, username=%{public}s", username.c_str());
+        diag("provide_creds OK username=%s", username.c_str());
+    } else if (!evCfg.autologin && username.empty()) {
+        diag("WARNING: 配置需要 auth-user-pass 但 ArkTS 没传 username，连接会卡住");
     }
 
     std::thread t([]() {
         auto status = client->connect();
         if (status.error) {
-            NETMANAGER_VPN_LOGE("连接失败, status: %{public}s, msg: %{public}s", status.status.c_str(),
-                                status.message.c_str());
+            diag("连接失败 status=%s msg=%s", status.status.c_str(), status.message.c_str());
         } else {
-            NETMANAGER_VPN_LOGI("OpenVPN 连接断开\n");
+            diag("OpenVPN 连接断开");
         }
     });
     t.detach();
@@ -519,7 +543,7 @@ static napi_value StopVpn(napi_env env, napi_callback_info info) {
 
     client = new Client();
 
-    NETMANAGER_VPN_LOGI("StopVpn successful\n");
+    diag("StopVpn successful");
 
     napi_value retValue;
     napi_create_int32(env, 0, &retValue);
