@@ -131,56 +131,69 @@ export struct VpnItem {
         .layoutWeight(1)
         .onClick(() => { this.display = !this.display })
 
-        Toggle({ type: ToggleType.Switch, isOn: this.isOn() })
-          .selectedColor('#22C55E')
-          .switchPointColor(Color.White)
-          .enabled(!this.someoneBusy())
-          .onChange(async (isOn) => {
-            // 防抖：状态已经一致就跳过
-            if (isOn === this.isOn()) return
-            if (isOn) {
-              if (this.needsAuth() && (!this.username || !this.password)) {
-                this.display = true
-                showToast(this.getUIContext(), '请先填写用户名 / 密码', 2200)
-                return
+        Stack() {
+          Toggle({ type: ToggleType.Switch, isOn: this.isOn() })
+            .selectedColor('#22C55E')
+            .switchPointColor(Color.White)
+            .enabled(!this.someoneBusy())
+            .onChange(async (isOn) => {
+              // 防抖：状态已经一致就跳过
+              if (isOn === this.isOn()) return
+              if (isOn) {
+                if (this.needsAuth() && (!this.username || !this.password)) {
+                  this.display = true
+                  showToast(this.getUIContext(), '请先填写用户名 / 密码', 2200)
+                  return
+                }
+                AppStorage.setOrCreate('vpn.busyName', this.name)
+                // 记下"上次使用"，供 HomeTab 大圆按钮直接 toggle
+                AppStorage.setOrCreate('vpn.lastUsedName', this.name)
+                try {
+                  await vpnExt.startVpnExtensionAbility({
+                    bundleName,
+                    abilityName,
+                    parameters: {
+                      cfg: this.cfg,
+                      username: this.username,
+                      password: this.password
+                    }
+                  })
+                  showToast(this.getUIContext(), 'VPN 已启动', 1200);
+                  hilog.info(0x0000, TAG, '%{public}s', 'start vpnExt Success');
+                } catch (err) {
+                  AppStorage.setOrCreate('vpn.busyName', '')
+                  showToast(this.getUIContext(), '启动失败: ' + JSON.stringify(err), 2400);
+                  hilog.error(0x0000, TAG, 'start vpnExt Fail %{public}s', JSON.stringify(err) ?? '');
+                }
+              } else {
+                AppStorage.setOrCreate('vpn.busyName', this.name)
+                try {
+                  await vpnExt.stopVpnExtensionAbility({ bundleName, abilityName })
+                  showToast(this.getUIContext(), 'VPN 已停止', 1200);
+                  hilog.info(0x0000, TAG, '%{public}s', 'stop vpnExt Success');
+                  // stop 调用本身不一定有 DESTROY 事件回来，主动清状态作为兜底
+                  AppStorage.setOrCreate('vpn.activeName', '')
+                  AppStorage.setOrCreate('vpn.connectedAt', 0)
+                  AppStorage.setOrCreate('vpn.busyName', '')
+                } catch (err) {
+                  AppStorage.setOrCreate('vpn.busyName', '')
+                  showToast(this.getUIContext(), '停止失败: ' + JSON.stringify(err), 2400);
+                  hilog.error(0x0000, TAG, 'stop vpnExt Fail %{public}s', JSON.stringify(err) ?? '');
+                }
               }
-              AppStorage.setOrCreate('vpn.busyName', this.name)
-              // 记下"上次使用"，供 HomeTab 大圆按钮直接 toggle
-              AppStorage.setOrCreate('vpn.lastUsedName', this.name)
-              try {
-                await vpnExt.startVpnExtensionAbility({
-                  bundleName,
-                  abilityName,
-                  parameters: {
-                    cfg: this.cfg,
-                    username: this.username,
-                    password: this.password
-                  }
-                })
-                showToast(this.getUIContext(), 'VPN 已启动', 1200);
-                hilog.info(0x0000, TAG, '%{public}s', 'start vpnExt Success');
-              } catch (err) {
-                AppStorage.setOrCreate('vpn.busyName', '')
-                showToast(this.getUIContext(), '启动失败: ' + JSON.stringify(err), 2400);
-                hilog.error(0x0000, TAG, 'start vpnExt Fail %{public}s', JSON.stringify(err) ?? '');
-              }
-            } else {
-              AppStorage.setOrCreate('vpn.busyName', this.name)
-              try {
-                await vpnExt.stopVpnExtensionAbility({ bundleName, abilityName })
-                showToast(this.getUIContext(), 'VPN 已停止', 1200);
-                hilog.info(0x0000, TAG, '%{public}s', 'stop vpnExt Success');
-                // stop 调用本身不一定有 DESTROY 事件回来，主动清状态作为兜底
-                AppStorage.setOrCreate('vpn.activeName', '')
-                AppStorage.setOrCreate('vpn.connectedAt', 0)
-                AppStorage.setOrCreate('vpn.busyName', '')
-              } catch (err) {
-                AppStorage.setOrCreate('vpn.busyName', '')
-                showToast(this.getUIContext(), '停止失败: ' + JSON.stringify(err), 2400);
-                hilog.error(0x0000, TAG, 'stop vpnExt Fail %{public}s', JSON.stringify(err) ?? '');
-              }
-            }
-          })
+            })
+
+          // 单选守卫：已有别的配置选中（非 busy 中）时，盖一层透明拦截层吃掉点击并提示
+          if (this.activeName !== '' && this.activeName !== this.name && !this.someoneBusy()) {
+            Column()
+              .width('100%')
+              .height('100%')
+              .onClick(() => {
+                showToast(this.getUIContext(),
+                  `请先关闭已选中的「${this.activeName}」`, 2400)
+              })
+          }
+        }
 
         // chevron 替代旧"展开/收起"文字按钮
         Text('▾')
