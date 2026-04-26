@@ -491,10 +491,18 @@ static napi_value StartVpn(napi_env env, napi_callback_info info) {
     config.allowLocalLanAccess = true;
     config.tunPersist = true;
 
+    // 配置里没有 <cert>/<key> 块 = 纯账号密码登录（公司 SSO/LDAP 这种），
+    // 不关闭 disableClientCert 的话 openvpn3 会以为要走外部 PKI，
+    // 报 "Missing External PKI alias" 直接连接失败。
+    if (content.find("<cert>") == std::string::npos) {
+        config.disableClientCert = true;
+        diag("config: no <cert> block, disableClientCert=true (auth-user-pass only)");
+    }
+
     openvpn::ClientAPI::EvalConfig evCfg = client->eval_config(config);
-    diag("eval_config: autologin=%d remoteHost=%s remotePort=%s remoteProto=%s",
-         evCfg.autologin ? 1 : 0, evCfg.remoteHost.c_str(), evCfg.remotePort.c_str(),
-         evCfg.remoteProto.c_str());
+    diag("eval_config: autologin=%d externalPki=%d remoteHost=%s remotePort=%s remoteProto=%s",
+         evCfg.autologin ? 1 : 0, evCfg.externalPki ? 1 : 0, evCfg.remoteHost.c_str(),
+         evCfg.remotePort.c_str(), evCfg.remoteProto.c_str());
     if (evCfg.error) {
         diag("eval_config ERROR: %s", evCfg.message.c_str());
         napi_create_string_utf8(env, evCfg.message.c_str(), evCfg.message.length(), &rv);
