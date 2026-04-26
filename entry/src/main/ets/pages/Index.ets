@@ -83,74 +83,130 @@ struct Index {
 
   build() {
     Column() {
-      Image($r('app.media.logo_splash'))
-        .autoResize(true)
-        .fitOriginalSize(true)
-        .objectFit(ImageFit.CENTER)
-        .width('85%')
-        .height('12%')
-        .margin({ top: 2 })
+      // 顶部 Header: 应用图标 + 标题
+      Row() {
+        Image($r('app.media.logo_splash'))
+          .width(40)
+          .height(40)
+          .borderRadius(10)
+          .margin({ right: 12 })
 
+        Column() {
+          Text('OpenVPN')
+            .fontSize(20)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#1F2937')
+          Text('鸿蒙原生 VPN 客户端')
+            .fontSize(11)
+            .fontColor('#6B7280')
+            .margin({ top: 2 })
+        }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+      }
+      .width('92%')
+      .padding({ top: 18, bottom: 16 })
+
+      // 列表区
       List() {
         LazyForEach(this.data, (item: ItemData) => {
           ListItem() {
             VpnItem(item)
           }.width('100%')
         })
-      }.width('100%').height('auto')
+      }
+      .width('100%')
+      .layoutWeight(1)
+      .padding({ bottom: 8 })
 
-      Row() {
-        Button('Add').onClick(async () => {
-          try {
-            const dp = new picker.DocumentViewPicker();
-            const uris = await dp.select({ fileSuffixFilters: ['.ovpn'] })
-            if (!uris || !uris.length) {
-              return
+      // 底部操作区: 主操作 Add 突出, 次级操作 Log/Clear/Browser 平铺
+      Column() {
+        Button('+  导入 .ovpn 配置')
+          .width('92%')
+          .height(46)
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(Color.White)
+          .backgroundColor('#3B82F6')
+          .borderRadius(12)
+          .onClick(async () => {
+            try {
+              const dp = new picker.DocumentViewPicker();
+              const uris = await dp.select({ fileSuffixFilters: ['.ovpn'] })
+              if (!uris || !uris.length) {
+                return
+              }
+              const dir = this.getDir()
+              for (let uri of uris) {
+                const fUri = new fileUri.FileUri(uri)
+                const cfg = await fs.readText(fUri.path)
+                const fullPath = `${dir}/${fUri.name}`
+                const fd = await fs.open(fullPath, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE)
+                await fs.write(fd.fd, cfg)
+                await fs.close(fd)
+                this.data.push({ name: fUri.name, cfg, fullPath })
+              }
+            } catch (e) {
+              showToast(this.getUIContext(), `导入失败: ${JSON.stringify(e)}`, 4000);
             }
-            const dir = this.getDir()
-            for (let uri of uris) {
-              const fUri = new fileUri.FileUri(uri)
-              const cfg = await fs.readText(fUri.path)
-              const fullPath = `${dir}/${fUri.name}`
-              const fd = await fs.open(fullPath, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE)
-              await fs.write(fd.fd, cfg)
-              await fs.close(fd)
-              this.data.push({ name: fUri.name, cfg, fullPath })
-            }
-          } catch (e) {
-            showToast(this.getUIContext(), `fileErr: ${JSON.stringify(e)}`, 4000);
-          }
-        }).fontSize(24).margin({ left: 5 })
+          })
 
-        Button('Log').onClick(async () => {
-          try {
-            await this.getUIContext().getRouter().pushUrl({ url: 'pages/Log' })
-          } catch (e) {
-            showToast(this.getUIContext(), `openLogErr: ${JSON.stringify(e)}`, 4000);
-          }
-        }).fontSize(24).margin({ left: 5 })
+        Row() {
+          Button('日志')
+            .fontSize(13)
+            .fontColor('#3B82F6')
+            .backgroundColor('#EFF6FF')
+            .borderRadius(8)
+            .height(36)
+            .layoutWeight(1)
+            .onClick(async () => {
+              try {
+                await this.getUIContext().getRouter().pushUrl({ url: 'pages/Log' })
+              } catch (e) {
+                showToast(this.getUIContext(), `打开日志失败: ${JSON.stringify(e)}`, 4000);
+              }
+            })
 
-        Button('Clear').onClick(async () => {
-          try {
-            await fs.truncate(this.getUIContext().getHostContext()?.filesDir + '/ovpn.log')
-            showToast(this.getUIContext(), `clear log success`, 1000);
-          } catch (e) {
-            showToast(this.getUIContext(), `clearLogErr: ${JSON.stringify(e)}`, 4000);
-          }
-        }).fontSize(24).margin({ left: 5 })
+          Button('清空日志')
+            .fontSize(13)
+            .fontColor('#6B7280')
+            .backgroundColor('#F3F4F6')
+            .borderRadius(8)
+            .height(36)
+            .layoutWeight(1)
+            .margin({ left: 8 })
+            .onClick(async () => {
+              try {
+                await fs.truncate(this.getUIContext().getHostContext()?.filesDir + '/ovpn.log')
+                showToast(this.getUIContext(), '日志已清空', 1200);
+              } catch (e) {
+                showToast(this.getUIContext(), `清空失败: ${JSON.stringify(e)}`, 4000);
+              }
+            })
 
-      }.width('90%').margin({ top: 5, bottom: 5 })
-
-      Row(){
-        Button('Browser').onClick(async () => {
-          try {
-            await this.getUIContext().getRouter().pushUrl({ url: 'pages/Browser' })
-          } catch (e) {
-            showToast(this.getUIContext(), `browserErr: ${JSON.stringify(e)}`, 4000);
-          }
-        }).fontSize(24).margin({ left: 5 })
-      }.width('90%')
-    }.width('100%').height('100%')
+          Button('浏览器')
+            .fontSize(13)
+            .fontColor('#6B7280')
+            .backgroundColor('#F3F4F6')
+            .borderRadius(8)
+            .height(36)
+            .layoutWeight(1)
+            .margin({ left: 8 })
+            .onClick(async () => {
+              try {
+                await this.getUIContext().getRouter().pushUrl({ url: 'pages/Browser' })
+              } catch (e) {
+                showToast(this.getUIContext(), `打开失败: ${JSON.stringify(e)}`, 4000);
+              }
+            })
+        }
+        .width('92%')
+        .margin({ top: 10 })
+      }
+      .width('100%')
+      .padding({ bottom: 18 })
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor('#F3F4F6')
   }
 }
 
