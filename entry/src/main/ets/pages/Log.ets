@@ -1,4 +1,4 @@
-import { fileIo as fs, picker, fileUri } from '@kit.CoreFileKit';
+import { fileIo as fs, picker } from '@kit.CoreFileKit';
 import { BusinessError } from '@ohos.base';
 import { showToast } from '../components/Common';
 
@@ -77,6 +77,8 @@ struct LogTailComponent {
 
   // 导出日志：通过系统 SaveDocumentPicker 让用户选位置保存（可保存到下载/iCloud/U 盘等）
   // 文件名带时间戳避免覆盖。落盘后用户可自行用 AirDrop / 微信 / 邮件等发出去。
+  // 注意：picker.save 返回的是 URI，不能走 fileUri.FileUri.path 转沙箱内路径再 copyFile，
+  // 那样会触发 13900001 (Operation not permitted)。要直接用 URI 调 fs.open 打开目标文件。
   async exportLog() {
     try {
       if (!(await this.checkFileExists())) {
@@ -90,8 +92,14 @@ struct LogTailComponent {
       if (!uris || !uris.length) {
         return
       }
-      const fUri = new fileUri.FileUri(uris[0])
-      await fs.copyFile(this.logPath, fUri.path)
+      const dstUri = uris[0]
+      const text = await fs.readText(this.logPath, { encoding: 'utf-8' })
+      const dst = await fs.open(dstUri, fs.OpenMode.READ_WRITE | fs.OpenMode.TRUNC)
+      try {
+        await fs.write(dst.fd, text)
+      } finally {
+        await fs.close(dst)
+      }
       showToast(this.getUIContext(), `已导出: ${fname}`, 2400)
     } catch (err) {
       showToast(this.getUIContext(), `导出失败: ${JSON.stringify(err)}`, 3000)
