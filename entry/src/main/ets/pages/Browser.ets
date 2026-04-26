@@ -5,12 +5,12 @@ import { showToast } from '../components/Common';
 
 const TAG: string = '[PageBrowser]'
 
-@Entry
-@Component
 interface BrowserParams {
   url?: string
 }
 
+@Entry
+@Component
 struct Browser {
   private controller: webview.WebviewController = new webview.WebviewController();
   @State url: string = 'https://www.google.com/';
