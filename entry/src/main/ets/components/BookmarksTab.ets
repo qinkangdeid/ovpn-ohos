@@ -1,7 +1,6 @@
 // 浏览器 Tab：分组书签 grid。
-// 默认组(网络检测/国内/国外)写死在代码里,公开可提交。
-// 私有组(公司/家里 等)由用户自己写 JSON 导入,存到沙箱 filesDir/bookmarks.json,
-// 不进仓库。格式见仓库根目录 docs/bookmarks.example.json。
+// 默认组(网络检测/国内/国外)写死在代码里。用户可通过"+ 导入"加自定义分组,
+// 数据存到沙箱 filesDir/bookmarks.json。格式见 docs/bookmarks.example.json。
 
 import hilog from '@ohos.hilog';
 import { picker, fileIo as fs, fileUri } from '@kit.CoreFileKit';
@@ -396,26 +395,18 @@ export struct BookmarksTab {
 
           if (!this.hasImported) {
             Column() {
-              Text('提示')
+              Text('添加自定义书签')
                 .fontSize(11)
                 .fontColor('#9CA3AF')
                 .fontWeight(FontWeight.Medium)
-              Text('私有书签(公司/家里 等)点右上角"+ 导入":')
+              Text('点右上角"+ 导入",支持粘贴 JSON 或选取 JSON 文件')
                 .fontSize(11)
                 .fontColor('#9CA3AF')
                 .margin({ top: 4 })
-              Text('• 粘贴 JSON 文本(微信/飞书发的,长按粘贴)')
-                .fontSize(11)
-                .fontColor('#9CA3AF')
-                .margin({ top: 2 })
-              Text('• 选取 JSON 文件(本地保存的 .json)')
-                .fontSize(11)
-                .fontColor('#9CA3AF')
-                .margin({ top: 2 })
               Text('格式参考仓库 docs/bookmarks.example.json')
                 .fontSize(11)
                 .fontColor('#9CA3AF')
-                .margin({ top: 6 })
+                .margin({ top: 4 })
             }
             .width('100%')
             .padding(14)
