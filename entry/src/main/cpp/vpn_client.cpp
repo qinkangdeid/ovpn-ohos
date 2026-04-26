@@ -238,7 +238,9 @@ public:
     virtual bool tun_builder_set_layer(int layer) override { return true; }
 
     virtual bool tun_builder_set_remote_address(const std::string &address, bool ipv6) override {
-        NETMANAGER_VPN_LOGI("tun_builder_set_remote_address: %{public}s", address.c_str());
+        NETMANAGER_VPN_LOGI("tun_builder_set_remote_address: %{public}s ipv6=%{public}d", address.c_str(), ipv6);
+        // socket_protect() 已经把到 VPN server 的 socket 标记为绕过 tun，不需要单独加 host bypass route。
+        // 这里只记录一下方便排查，以后若发现 protect 不可靠可以走 JS 侧加 bypass。
         return true;
     }
 
@@ -262,13 +264,40 @@ public:
         return true;
     }
 
+    // openvpn3 在配置里出现 `redirect-gateway def1` 时调这里（不再走 tun_builder_add_route 加 0/0），
+    // 我们必须自己展开成两条 /1 路由把默认路由抢进 tun。VPN server 真实 IP 的回环由 socket_protect() 防。
+    // 上游 ovpn-ohos 把这个回调留空，导致 redirect-gateway 完全失效，必须在 ccd 里显式 push 每个 IP 段才能用。
     virtual bool tun_builder_reroute_gw(bool ipv4, bool ipv6, unsigned int flags) override {
-//          this->tun.routes.push_back(RouteInfo{
-//             .destination = {.address = {.address = "1.0.0.0", .family = ipv4 ? 1 : 2}, .prefixLength = 24},
-//             .gateway = this->tun_gw,
-//             .hasGateway = true,
-//             .isDefaultRoute = true,
-//         });
+        NETMANAGER_VPN_LOGI("tun_builder_reroute_gw: ipv4=%{public}d ipv6=%{public}d flags=%{public}u",
+                            ipv4, ipv6, flags);
+        if (ipv4) {
+            this->tun.routes.push_back(RouteInfo{
+                .destination = {.address = {.address = "0.0.0.0", .family = 1}, .prefixLength = 1},
+                .gateway = this->tun_gw,
+                .hasGateway = true,
+                .isDefaultRoute = true,
+            });
+            this->tun.routes.push_back(RouteInfo{
+                .destination = {.address = {.address = "128.0.0.0", .family = 1}, .prefixLength = 1},
+                .gateway = this->tun_gw,
+                .hasGateway = true,
+                .isDefaultRoute = true,
+            });
+        }
+        if (ipv6) {
+            this->tun.routes.push_back(RouteInfo{
+                .destination = {.address = {.address = "::", .family = 2}, .prefixLength = 1},
+                .gateway = this->tun_gw,
+                .hasGateway = true,
+                .isDefaultRoute = true,
+            });
+            this->tun.routes.push_back(RouteInfo{
+                .destination = {.address = {.address = "8000::", .family = 2}, .prefixLength = 1},
+                .gateway = this->tun_gw,
+                .hasGateway = true,
+                .isDefaultRoute = true,
+            });
+        }
         return true;
     }
 
