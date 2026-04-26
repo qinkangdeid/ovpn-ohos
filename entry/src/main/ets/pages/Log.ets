@@ -114,34 +114,74 @@ struct LogTailComponent {
 
   build() {
     Column() {
+      // 顶部栏
       Row() {
-        Button('导出日志')
-          .fontSize(13)
-          .fontColor(Color.White)
-          .backgroundColor('#3B82F6')
-          .borderRadius(8)
-          .height(36)
+        Text('‹')
+          .fontSize(28)
+          .fontColor('#1F2937')
+          .fontWeight(FontWeight.Medium)
+          .width(40)
+          .height(40)
+          .textAlign(TextAlign.Center)
+          .onClick(() => { this.getUIContext().getRouter().back() })
+
+        Text('运行日志')
+          .fontSize(17)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#1F2937')
           .layoutWeight(1)
-          .onClick(() => this.exportLog())
+          .textAlign(TextAlign.Center)
+          .margin({ right: 40 })
       }
       .width('100%')
-      .padding({ left: 10, right: 10, top: 8, bottom: 8 })
+      .height(48)
+      .padding({ left: 8, right: 8 })
+      .backgroundColor('#FFFFFF')
 
-      Scroll(this.scroller) {
-        Text(this.logContent)
-          .fontSize(13)
-          .fontFamily('monospace')
-          .textAlign(TextAlign.Start)
-          .width('100%')
-          .padding(10)
-          .fontColor(Color.White)
-          .backgroundColor(Color.Black)
-          .borderRadius(8)
+      Divider().color('#E5E7EB')
+
+      // 终端面板
+      Column() {
+        Scroll(this.scroller) {
+          Text(this.logContent)
+            .fontSize(12)
+            .fontFamily('monospace')
+            .textAlign(TextAlign.Start)
+            .width('100%')
+            .padding(12)
+            .fontColor('#E2E8F0')
+        }
+        .scrollBar(BarState.Off)
+        .layoutWeight(1)
+        .width('100%')
+        .backgroundColor('#0F172A')
+        .borderRadius(12)
       }
-      .scrollBar(BarState.Off)
+      .width('92%')
       .layoutWeight(1)
+      .margin({ top: 12, bottom: 12 })
+
+      // 底部导出
+      Row() {
+        Button('导出日志')
+          .fontSize(14)
+          .fontColor(Color.White)
+          .fontWeight(FontWeight.Medium)
+          .height(44)
+          .layoutWeight(1)
+          .backgroundColor('#3B82F6')
+          .borderRadius(12)
+          .shadow({ radius: 10, color: '#3B82F633', offsetY: 4 })
+          .onClick(() => this.exportLog())
+      }
+      .width('92%')
+      .padding({ bottom: 16 })
     }
     .width('100%')
     .height('100%')
+    .linearGradient({
+      angle: 180,
+      colors: [['#F8FAFC', 0.0], ['#EEF2F7', 1.0]]
+    })
   }
 }
