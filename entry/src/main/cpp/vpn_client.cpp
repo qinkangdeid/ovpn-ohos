@@ -490,6 +490,11 @@ static napi_value StartVpn(napi_env env, napi_callback_info info) {
     config.info = true;
     config.allowLocalLanAccess = true;
     config.tunPersist = true;
+    // 允许双向压缩。openvpn3 默认 compressionMode="" (=="no") 会在服务端 push
+    // comp-lzo 时主动 DISCONNECT 报 "server pushed compression settings that are
+    // not allowed" —— 公司 NJOffice 用的就是 comp-lzo，不放开就连上立刻掉。
+    // 安全权衡：comp-lzo 有 VORACLE 已知漏洞，但公司 VPN 是受信端点，可接受。
+    config.compressionMode = "yes";
 
     // 配置里没有 <cert>/<key> 块 = 纯账号密码登录（公司 SSO/LDAP 这种），
     // 不关闭 disableClientCert 的话 openvpn3 会以为要走外部 PKI，
