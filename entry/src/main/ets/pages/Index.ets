@@ -83,25 +83,19 @@ struct Index {
 
   build() {
     Column() {
-      // 顶部 Header: 应用图标 + 标题
-      Row() {
+      // 顶部 Header: 用 wordmark logo 当主标题（logo_splash.png 是 836x150 的横向商标，
+      // 之前塞到 40x40 方框里默认 Cover 只露右半截，这里换成 Contain + 自适应宽度。
+      Column() {
         Image($r('app.media.logo_splash'))
-          .width(40)
-          .height(40)
-          .borderRadius(10)
-          .margin({ right: 12 })
-
-        Column() {
-          Text('OpenVPN')
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#1F2937')
-          Text('鸿蒙原生 VPN 客户端')
-            .fontSize(11)
-            .fontColor('#6B7280')
-            .margin({ top: 2 })
-        }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+          .height(30)
+          .objectFit(ImageFit.Contain)
+          .alignSelf(ItemAlign.Start)
+        Text('鸿蒙原生 VPN 客户端')
+          .fontSize(11)
+          .fontColor('#6B7280')
+          .margin({ top: 6 })
       }
+      .alignItems(HorizontalAlign.Start)
       .width('92%')
       .padding({ top: 18, bottom: 16 })
 
@@ -150,7 +144,7 @@ struct Index {
           })
 
         Row() {
-          Button('日志')
+          Button('📋  日志')
             .fontSize(13)
             .fontColor('#3B82F6')
             .backgroundColor('#EFF6FF')
@@ -165,7 +159,7 @@ struct Index {
               }
             })
 
-          Button('清空日志')
+          Button('🗑  清空')
             .fontSize(13)
             .fontColor('#6B7280')
             .backgroundColor('#F3F4F6')
@@ -182,7 +176,7 @@ struct Index {
               }
             })
 
-          Button('浏览器')
+          Button('🌐  浏览器')
             .fontSize(13)
             .fontColor('#6B7280')
             .backgroundColor('#F3F4F6')

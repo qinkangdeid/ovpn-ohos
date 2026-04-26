@@ -68,7 +68,7 @@ export struct VpnItem {
 
   build() {
     Column() {
-      // 顶部行: 状态点 + 名字 / 状态文 + Toggle + 展开按钮
+      // 顶部行: 整行可点击展开/收起；状态点 + 名字 / 状态文 + Toggle + Chevron 箭头
       Row() {
         Circle({ width: 10, height: 10 })
           .fill(this.isOn ? '#22C55E' : '#9CA3AF')
@@ -79,11 +79,14 @@ export struct VpnItem {
             .fontSize(16)
             .fontWeight(FontWeight.Medium)
             .fontColor('#1F2937')
-          Text(this.isOn ? 'Connected' : (this.needsAuth() ? 'Auth required' : 'Idle'))
+          Text(this.isOn ? 'Connected' : (this.needsAuth() && (!this.username || !this.password) ? 'Auth required' : 'Idle'))
             .fontSize(11)
             .fontColor(this.isOn ? '#22C55E' : '#6B7280')
             .margin({ top: 2 })
-        }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+        .onClick(() => { this.display = !this.display })
 
         Toggle({ type: ToggleType.Switch, isOn: this.isOn })
           .selectedColor('#3B82F6')
@@ -93,7 +96,8 @@ export struct VpnItem {
             this.isOn = isOn
             if (isOn) {
               if (this.needsAuth() && (!this.username || !this.password)) {
-                showToast(this.getUIContext(), '请先展开并填写用户名 / 密码', 2200)
+                this.display = true
+                showToast(this.getUIContext(), '请先填写用户名 / 密码', 2200)
                 this.isOn = false
                 return
               }
@@ -107,12 +111,10 @@ export struct VpnItem {
             }
           })
 
-        Button(this.display ? '收起' : '展开')
-          .fontSize(13)
-          .fontColor('#3B82F6')
-          .backgroundColor(Color.Transparent)
-          .height(32)
-          .margin({ left: 8 })
+        Text(this.display ? '▾' : '▸')  // ▾ 展开 / ▸ 收起
+          .fontSize(18)
+          .fontColor('#9CA3AF')
+          .margin({ left: 12, right: 4 })
           .onClick(() => { this.display = !this.display })
       }
       .width('100%')
@@ -202,6 +204,7 @@ export struct VpnItem {
     .backgroundColor(Color.White)
     .borderRadius(14)
     .shadow({ radius: 8, color: '#0A000000', offsetY: 2 })
+    .border(this.isOn ? { width: { left: 4 }, color: { left: '#22C55E' } } : { width: 0 })
   }
 
   async startVpn() {
