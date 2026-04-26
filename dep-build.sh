@@ -76,7 +76,8 @@ cd $BUILD_PATH && curl -LO https://github.com/openssl/openssl/releases/download/
     cd $BUILD_PATH && rm -rf *
 
 # asio
-cd $BUILD_PATH && git clone https://github.com/chriskohlhoff/asio.git && cd asio/asio/include && \
+asio_version="asio-1-30-2"
+cd $BUILD_PATH && git clone --depth 1 --branch $asio_version https://github.com/chriskohlhoff/asio.git && cd asio/asio/include && \
     mv -f asio asio.hpp $INSTALL_PREFIX/include && \
     cd $BUILD_PATH && rm -rf *
 
