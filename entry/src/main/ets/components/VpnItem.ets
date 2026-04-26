@@ -20,8 +20,9 @@ export struct VpnItem {
   @State busy: boolean = false
 
   // 检测配置是否要求账号密码登录
+  // 匹配裸 `auth-user-pass`（可带行尾 # 或 ; 注释，CRLF 行尾也兼容），排除 `auth-user-pass FILE` 这种从文件读凭据的形式
   needsAuth(): boolean {
-    return /^auth-user-pass\s*$/m.test(this.cfg)
+    return /^auth-user-pass[ \t\r]*(?:[#;].*)?$/m.test(this.cfg)
   }
 
   build() {

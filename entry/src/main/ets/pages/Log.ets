@@ -1,5 +1,6 @@
-import fs from '@ohos.file.fs';
+import { fileIo as fs, picker, fileUri } from '@kit.CoreFileKit';
 import { BusinessError } from '@ohos.base';
+import { showToast } from '../components/Common';
 
 @Entry
 @Component
@@ -74,6 +75,29 @@ struct LogTailComponent {
     }
   }
 
+  // 导出日志：通过系统 SaveDocumentPicker 让用户选位置保存（可保存到下载/iCloud/U 盘等）
+  // 文件名带时间戳避免覆盖。落盘后用户可自行用 AirDrop / 微信 / 邮件等发出去。
+  async exportLog() {
+    try {
+      if (!(await this.checkFileExists())) {
+        showToast(this.getUIContext(), '日志文件不存在', 1500)
+        return
+      }
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19)
+      const fname = `ovpn-${ts}.log`
+      const dp = new picker.DocumentViewPicker()
+      const uris = await dp.save({ newFileNames: [fname] })
+      if (!uris || !uris.length) {
+        return
+      }
+      const fUri = new fileUri.FileUri(uris[0])
+      await fs.copyFile(this.logPath, fUri.path)
+      showToast(this.getUIContext(), `已导出: ${fname}`, 2400)
+    } catch (err) {
+      showToast(this.getUIContext(), `导出失败: ${JSON.stringify(err)}`, 3000)
+    }
+  }
+
   onPageShow() {
     setTimeout(() => {
       this.scroller.scrollEdge(Edge.Bottom);
@@ -81,17 +105,35 @@ struct LogTailComponent {
   }
 
   build() {
-    Scroll(this.scroller) {
-      Text(this.logContent)
-        .fontSize(16)
-        .textAlign(TextAlign.Start)
-        .width('100%')
-        .padding(10)
-        .fontColor(Color.White)
-        .backgroundColor(Color.Black)
-        .borderRadius(8)
+    Column() {
+      Row() {
+        Button('导出日志')
+          .fontSize(13)
+          .fontColor(Color.White)
+          .backgroundColor('#3B82F6')
+          .borderRadius(8)
+          .height(36)
+          .layoutWeight(1)
+          .onClick(() => this.exportLog())
+      }
+      .width('100%')
+      .padding({ left: 10, right: 10, top: 8, bottom: 8 })
+
+      Scroll(this.scroller) {
+        Text(this.logContent)
+          .fontSize(13)
+          .fontFamily('monospace')
+          .textAlign(TextAlign.Start)
+          .width('100%')
+          .padding(10)
+          .fontColor(Color.White)
+          .backgroundColor(Color.Black)
+          .borderRadius(8)
+      }
+      .scrollBar(BarState.Off)
+      .layoutWeight(1)
     }
-    .scrollBar(BarState.Off)
-    .height('100vh')
+    .width('100%')
+    .height('100%')
   }
 }
