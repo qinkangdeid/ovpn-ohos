@@ -144,53 +144,77 @@ struct Index {
           })
 
         Row() {
-          Button('📋  日志')
-            .fontSize(13)
-            .fontColor('#3B82F6')
-            .backgroundColor('#EFF6FF')
-            .borderRadius(8)
-            .height(36)
-            .layoutWeight(1)
-            .onClick(async () => {
-              try {
-                await this.getUIContext().getRouter().pushUrl({ url: 'pages/Log' })
-              } catch (e) {
-                showToast(this.getUIContext(), `打开日志失败: ${JSON.stringify(e)}`, 4000);
-              }
-            })
+          Button() {
+            Row() {
+              SymbolGlyph($r('sys.symbol.doc_plaintext'))
+                .fontSize(16)
+                .fontColor(['#3B82F6'])
+              Text('日志')
+                .fontSize(13)
+                .fontColor('#3B82F6')
+                .margin({ left: 6 })
+            }
+          }
+          .backgroundColor('#EFF6FF')
+          .borderRadius(8)
+          .height(36)
+          .layoutWeight(1)
+          .onClick(async () => {
+            try {
+              await this.getUIContext().getRouter().pushUrl({ url: 'pages/Log' })
+            } catch (e) {
+              showToast(this.getUIContext(), `打开日志失败: ${JSON.stringify(e)}`, 4000);
+            }
+          })
 
-          Button('🗑  清空')
-            .fontSize(13)
-            .fontColor('#6B7280')
-            .backgroundColor('#F3F4F6')
-            .borderRadius(8)
-            .height(36)
-            .layoutWeight(1)
-            .margin({ left: 8 })
-            .onClick(async () => {
-              try {
-                await fs.truncate(this.getUIContext().getHostContext()?.filesDir + '/ovpn.log')
-                showToast(this.getUIContext(), '日志已清空', 1200);
-              } catch (e) {
-                showToast(this.getUIContext(), `清空失败: ${JSON.stringify(e)}`, 4000);
-              }
-            })
+          Button() {
+            Row() {
+              SymbolGlyph($r('sys.symbol.trash'))
+                .fontSize(16)
+                .fontColor(['#6B7280'])
+              Text('清空')
+                .fontSize(13)
+                .fontColor('#6B7280')
+                .margin({ left: 6 })
+            }
+          }
+          .backgroundColor('#F3F4F6')
+          .borderRadius(8)
+          .height(36)
+          .layoutWeight(1)
+          .margin({ left: 8 })
+          .onClick(async () => {
+            try {
+              await fs.truncate(this.getUIContext().getHostContext()?.filesDir + '/ovpn.log')
+              showToast(this.getUIContext(), '日志已清空', 1200);
+            } catch (e) {
+              showToast(this.getUIContext(), `清空失败: ${JSON.stringify(e)}`, 4000);
+            }
+          })
 
-          Button('🌐  浏览器')
-            .fontSize(13)
-            .fontColor('#6B7280')
-            .backgroundColor('#F3F4F6')
-            .borderRadius(8)
-            .height(36)
-            .layoutWeight(1)
-            .margin({ left: 8 })
-            .onClick(async () => {
-              try {
-                await this.getUIContext().getRouter().pushUrl({ url: 'pages/Browser' })
-              } catch (e) {
-                showToast(this.getUIContext(), `打开失败: ${JSON.stringify(e)}`, 4000);
-              }
-            })
+          Button() {
+            Row() {
+              SymbolGlyph($r('sys.symbol.globe'))
+                .fontSize(16)
+                .fontColor(['#6B7280'])
+              Text('浏览器')
+                .fontSize(13)
+                .fontColor('#6B7280')
+                .margin({ left: 6 })
+            }
+          }
+          .backgroundColor('#F3F4F6')
+          .borderRadius(8)
+          .height(36)
+          .layoutWeight(1)
+          .margin({ left: 8 })
+          .onClick(async () => {
+            try {
+              await this.getUIContext().getRouter().pushUrl({ url: 'pages/Browser' })
+            } catch (e) {
+              showToast(this.getUIContext(), `打开失败: ${JSON.stringify(e)}`, 4000);
+            }
+          })
         }
         .width('92%')
         .margin({ top: 10 })

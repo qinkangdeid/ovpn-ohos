@@ -111,10 +111,12 @@ export struct VpnItem {
             }
           })
 
-        Text(this.display ? '▾' : '▸')  // ▾ 展开 / ▸ 收起
-          .fontSize(18)
-          .fontColor('#9CA3AF')
-          .margin({ left: 12, right: 4 })
+        Button(this.display ? '收起' : '展开')
+          .fontSize(13)
+          .fontColor('#3B82F6')
+          .backgroundColor(Color.Transparent)
+          .height(32)
+          .margin({ left: 8 })
           .onClick(() => { this.display = !this.display })
       }
       .width('100%')
