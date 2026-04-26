@@ -133,24 +133,8 @@ struct Index {
     .padding({ top: 32, bottom: 32 })
   }
 
-  @Builder
-  SecondaryAction(label: string, glyph: Resource, onTap: () => void) {
-    Column() {
-      SymbolGlyph(glyph)
-        .fontSize(20)
-        .fontColor(['#6B7280'])
-      Text(label)
-        .fontSize(11)
-        .fontColor('#374151')
-        .margin({ top: 4 })
-    }
-    .layoutWeight(1)
-    .height(56)
-    .justifyContent(FlexAlign.Center)
-    .borderRadius(12)
-    .backgroundColor('#FFFFFF')
-    .onClick(() => { onTap() })
-  }
+  // 注意：ArkTS @Builder 把 Resource ($r(...)) 当参数透传时，编译器静态校验失败会报
+  // "Unknown resource name"。所以下面三个次级按钮在 build() 里直接内联写，不抽 Builder。
 
   build() {
     Column() {
@@ -251,9 +235,23 @@ struct Index {
           }
         })
 
-        // 次级操作三联
+        // 次级操作三联（直接内联，避免 @Builder 透传 Resource 失效）
         Row({ space: 8 }) {
-          this.SecondaryAction('日志', $r('sys.symbol.doc_plaintext'), async () => {
+          Column() {
+            SymbolGlyph($r('sys.symbol.doc_plaintext'))
+              .fontSize(20)
+              .fontColor(['#6B7280'])
+            Text('日志')
+              .fontSize(11)
+              .fontColor('#374151')
+              .margin({ top: 4 })
+          }
+          .layoutWeight(1)
+          .height(56)
+          .justifyContent(FlexAlign.Center)
+          .borderRadius(12)
+          .backgroundColor('#FFFFFF')
+          .onClick(async () => {
             try {
               await this.getUIContext().getRouter().pushUrl({ url: 'pages/Log' })
             } catch (e) {
@@ -261,7 +259,21 @@ struct Index {
             }
           })
 
-          this.SecondaryAction('清空日志', $r('sys.symbol.trash'), async () => {
+          Column() {
+            SymbolGlyph($r('sys.symbol.trash'))
+              .fontSize(20)
+              .fontColor(['#6B7280'])
+            Text('清空日志')
+              .fontSize(11)
+              .fontColor('#374151')
+              .margin({ top: 4 })
+          }
+          .layoutWeight(1)
+          .height(56)
+          .justifyContent(FlexAlign.Center)
+          .borderRadius(12)
+          .backgroundColor('#FFFFFF')
+          .onClick(async () => {
             try {
               await fs.truncate(this.getUIContext().getHostContext()?.filesDir + '/ovpn.log')
               showToast(this.getUIContext(), '日志已清空', 1200);
@@ -270,7 +282,21 @@ struct Index {
             }
           })
 
-          this.SecondaryAction('浏览器', $r('sys.symbol.globe'), async () => {
+          Column() {
+            SymbolGlyph($r('sys.symbol.globe'))
+              .fontSize(20)
+              .fontColor(['#6B7280'])
+            Text('浏览器')
+              .fontSize(11)
+              .fontColor('#374151')
+              .margin({ top: 4 })
+          }
+          .layoutWeight(1)
+          .height(56)
+          .justifyContent(FlexAlign.Center)
+          .borderRadius(12)
+          .backgroundColor('#FFFFFF')
+          .onClick(async () => {
             try {
               await this.getUIContext().getRouter().pushUrl({ url: 'pages/Browser' })
             } catch (e) {
