@@ -10,7 +10,22 @@ mkdir -p $BUILD_PATH
 
 export TARGET_ARCH=arm64-v8a
 export TARGET_PLATFORM=aarch64-linux-ohos
-export OHOS_SDK_ROOT=~/Library/OpenHarmony/Sdk/15
+
+# OHOS_SDK_ROOT 自动探测：优先用环境变量，fallback 到 macOS DevEco 5.x bundle 路径，
+# 再 fallback 到老版独立 SDK 安装路径。可以用环境变量 OHOS_SDK_ROOT 覆盖。
+if [ -z "$OHOS_SDK_ROOT" ]; then
+    if [ -d "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony" ]; then
+        export OHOS_SDK_ROOT=/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony
+    elif [ -d "$HOME/Library/OpenHarmony/Sdk/HarmonyOS-NEXT-DB1/openharmony" ]; then
+        export OHOS_SDK_ROOT=$HOME/Library/OpenHarmony/Sdk/HarmonyOS-NEXT-DB1/openharmony
+    elif [ -d "$HOME/Library/OpenHarmony/Sdk/15" ]; then
+        export OHOS_SDK_ROOT=$HOME/Library/OpenHarmony/Sdk/15
+    else
+        echo "ERROR: OHOS_SDK_ROOT 未设置且找不到 DevEco SDK，请手动 export OHOS_SDK_ROOT=<path>" >&2
+        exit 1
+    fi
+fi
+echo "Using OHOS_SDK_ROOT=$OHOS_SDK_ROOT"
 export TOOLCHAIN_BIN=$OHOS_SDK_ROOT/native/llvm/bin
 export PATH=$OHOS_SDK_ROOT/native/llvm/bin:$OHOS_SDK_ROOT/native/build-tools/cmake/bin:$OHOS_SDK_ROOT/toolchains:$PATH
 export CMAKE_TOOLCHAIN_FILE=$OHOS_SDK_ROOT/native/build/cmake/ohos.toolchain.cmake
