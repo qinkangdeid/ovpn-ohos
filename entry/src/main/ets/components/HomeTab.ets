@@ -10,8 +10,6 @@ import { showToast } from './Common';
 import {
   Palette,
   Radius,
-  ShadowGlowSuccess,
-  ShadowGlowPrimary,
   SpringResponsive,
   SpringSnappy,
   Dur
@@ -21,11 +19,6 @@ const TAG: string = '[HomeTab]'
 const bundleName = BUNDLE_NAME
 const abilityName = 'OvpnExtAbility'
 const CREDS_PREF = 'vpn_creds'
-
-interface GradientOpts {
-  angle: number
-  colors: Array<[string, number]>
-}
 
 async function getCredsStore(ctx: Context): Promise<preferences.Preferences> {
   return await preferences.getPreferences(ctx, { name: CREDS_PREF })
@@ -38,19 +31,14 @@ export struct HomeTab {
   @StorageLink('vpn.busyName') busyName: string = ''
   @StorageLink('vpn.lastUsedName') lastUsedName: string = ''
   @State now: number = Date.now()
-  // 大圆按钮交互态
   @State pressed: boolean = false
-  // 呼吸光晕缩放
   @State haloScale: number = 1
-  // 连接中旋转角
   @State spin: number = 0
   private timer: number = -1
 
   aboutToAppear() {
     this.timer = setInterval(() => { this.now = Date.now() }, 1000) as number
-    // 启动呼吸（一次状态变更，靠 .animation iterations 持续往返）
     this.haloScale = 1.06
-    // 启动旋转
     this.spin = 360
   }
 
@@ -90,66 +78,19 @@ export struct HomeTab {
   }
 
   haloColor(): string {
-    if (this.isBusy()) return Palette.primarySoft
-    return this.isConnected() ? '#86EFAC' : '#E2E8F0'
+    if (this.isBusy()) return '#BFDBFE'
+    return this.isConnected() ? '#6EE7B7' : '#CBD5E1'
+  }
+
+  haloOpacity(): number {
+    if (this.isBusy()) return 0.4
+    // 连接态光晕加亮——视觉上"在发光"
+    return this.isConnected() ? 0.5 : 0.2
   }
 
   titleColor(): string {
     if (this.isBusy()) return Palette.primaryDeep
-    return this.isConnected() ? '#15803D' : Palette.textPrimary
-  }
-
-  // 流动渐变环 — 三色重复造出"高光带"扫过的视觉
-  ringGradient(): GradientOpts {
-    if (this.isBusy()) {
-      return {
-        angle: 45,
-        colors: [['#60A5FA', 0.0], ['#2563EB', 0.5], ['#60A5FA', 1.0]]
-      }
-    }
-    if (this.isConnected()) {
-      return {
-        angle: 45,
-        colors: [['#86EFAC', 0.0], ['#22C55E', 0.5], ['#86EFAC', 1.0]]
-      }
-    }
-    return {
-      angle: 45,
-      colors: [['#CBD5E1', 0.0], ['#94A3B8', 0.5], ['#CBD5E1', 1.0]]
-    }
-  }
-
-  // 内圆主体渐变（顶亮底深，制造立体感）
-  innerGradient(): GradientOpts {
-    if (this.isBusy()) {
-      return {
-        angle: 135,
-        colors: [['#3B82F6', 0.0], ['#1D4ED8', 1.0]]
-      }
-    }
-    if (this.isConnected()) {
-      return {
-        angle: 135,
-        colors: [['#34D399', 0.0], ['#15803D', 1.0]]
-      }
-    }
-    return {
-      angle: 135,
-      colors: [['#CBD5E1', 0.0], ['#64748B', 1.0]]
-    }
-  }
-
-  glassHighlight(): GradientOpts {
-    return {
-      angle: 180,
-      colors: [['#FFFFFF66', 0.0], ['#FFFFFF00', 0.55]]
-    }
-  }
-
-  coreShadow(): ShadowOptions {
-    if (this.isBusy()) return ShadowGlowPrimary
-    if (this.isConnected()) return ShadowGlowSuccess
-    return { radius: 18, color: '#94A3B855', offsetY: 8 }
+    return this.isConnected() ? '#047857' : Palette.textPrimary
   }
 
   async toggle() {
@@ -218,19 +159,86 @@ export struct HomeTab {
     }
   }
 
+  // 渐变 inline Builder（直接 inline，避免 typed return 在 ArkTS 下被 fallback 成默认色）
+  @Builder
+  RingLayer() {
+    if (this.isBusy()) {
+      Column()
+        .width(232).height(232).borderRadius(116)
+        .linearGradient({
+          angle: 45,
+          colors: [['#60A5FA', 0.0], ['#2563EB', 0.5], ['#60A5FA', 1.0]]
+        })
+        .opacity(1.0)
+        .rotate({ angle: this.spin })
+        .animation({ duration: 1600, iterations: -1, curve: Curve.Linear })
+    } else if (this.isConnected()) {
+      // 连接态：青绿色高饱和高亮流光
+      Column()
+        .width(232).height(232).borderRadius(116)
+        .linearGradient({
+          angle: 45,
+          colors: [['#6EE7B7', 0.0], ['#10B981', 0.5], ['#67E8F9', 1.0]]
+        })
+        .opacity(1.0)
+        .rotate({ angle: this.spin })
+        .animation({ duration: 4500, iterations: -1, curve: Curve.Linear })
+    } else {
+      // 关闭态：低饱和深灰冷调，明显"熄灭"
+      Column()
+        .width(232).height(232).borderRadius(116)
+        .linearGradient({
+          angle: 45,
+          colors: [['#94A3B8', 0.0], ['#64748B', 0.5], ['#94A3B8', 1.0]]
+        })
+        .opacity(0.55)
+        .rotate({ angle: this.spin })
+        .animation({ duration: 6000, iterations: -1, curve: Curve.Linear })
+    }
+  }
+
+  @Builder
+  InnerLayer() {
+    if (this.isBusy()) {
+      Column()
+        .width(212).height(212).borderRadius(106)
+        .linearGradient({
+          angle: 135,
+          colors: [['#3B82F6', 0.0], ['#1D4ED8', 1.0]]
+        })
+        .shadow({ radius: 32, color: '#662563EB', offsetY: 8 })
+    } else if (this.isConnected()) {
+      // 连接态：高亮 emerald → cyan，强光晕，一眼看出"在亮"
+      Column()
+        .width(212).height(212).borderRadius(106)
+        .linearGradient({
+          angle: 135,
+          colors: [['#34D399', 0.0], ['#10B981', 0.5], ['#06B6D4', 1.0]]
+        })
+        .shadow({ radius: 40, color: '#9910B981', offsetY: 10 })
+    } else {
+      // 关闭态：暗 slate，明显"熄灭"，与连接态形成强对比
+      Column()
+        .width(212).height(212).borderRadius(106)
+        .linearGradient({
+          angle: 135,
+          colors: [['#64748B', 0.0], ['#1E293B', 1.0]]
+        })
+        .shadow({ radius: 14, color: '#401E293B', offsetY: 6 })
+    }
+  }
+
   build() {
     Column() {
       Blank()
 
       // === 巨型按钮（多层堆叠） ===
       Stack() {
-        // 1. 远端柔光（呼吸缩放）
+        // 1. 远端柔光（呼吸缩放，连接态加亮）
         Column()
-          .width(300)
-          .height(300)
-          .borderRadius(150)
+          .width(300).height(300).borderRadius(150)
           .backgroundColor(this.haloColor())
-          .opacity(0.28)
+          .opacity(this.haloOpacity())
           .scale({ x: this.haloScale, y: this.haloScale })
           .animation({
             duration: Dur.breathe,
@@ -240,33 +248,18 @@ export struct HomeTab {
           })
 
         // 2. 流动渐变环（旋转）
-        Column()
-          .width(232)
-          .height(232)
-          .borderRadius(116)
-          .linearGradient(this.ringGradient())
-          .opacity(this.isBusy() ? 1.0 : 0.85)
-          .rotate({ angle: this.spin })
-          .animation({
-            duration: this.isBusy() ? 1600 : 6000,
-            iterations: -1,
-            curve: Curve.Linear
-          })
+        this.RingLayer()
 
         // 3. 内圆（实心 + 主阴影）
-        Column()
-          .width(212)
-          .height(212)
-          .borderRadius(106)
-          .linearGradient(this.innerGradient())
-          .shadow(this.coreShadow())
+        this.InnerLayer()
 
-        // 4. 内圆顶部高光（玻璃质感）
+        // 4. 内圆顶部高光（玻璃质感，固定半透明白渐变）
         Column()
-          .width(212)
-          .height(212)
-          .borderRadius(106)
-          .linearGradient(this.glassHighlight())
+          .width(212).height(212).borderRadius(106)
+          .linearGradient({
+            angle: 180,
+            colors: [['#66FFFFFF', 0.0], ['#00FFFFFF', 0.55]]
+          })
 
         // 5. 中心文字
         Text(this.centerLabel())
@@ -294,7 +287,7 @@ export struct HomeTab {
         .margin({ top: 32 })
         .animation({ duration: Dur.base, curve: SpringResponsive })
 
-      // === 副信息（按状态变化） ===
+      // === 副信息 ===
       if (this.isConnected()) {
         Row({ space: 6 }) {
           Column().width(6).height(6).borderRadius(3).backgroundColor(Palette.success)

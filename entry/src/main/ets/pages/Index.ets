@@ -238,7 +238,7 @@ struct Index {
       .barHeight(68)
       .barMode(BarMode.Fixed)
       .scrollable(true)
-      .barBackgroundColor('#FFFFFFCC')
+      .barBackgroundColor('#CCFFFFFF')
       .onChange((idx: number) => { this.currentTab = idx })
     }
     .width('100%')

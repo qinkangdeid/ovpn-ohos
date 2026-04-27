@@ -141,7 +141,7 @@ export struct ConfigsTab {
           .borderRadius(Radius.md)
           .linearGradient({
             angle: 180,
-            colors: [['#FFFFFF33', 0.0], ['#FFFFFF00', 0.5]]
+            colors: [['#33FFFFFF', 0.0], ['#00FFFFFF', 0.5]]
           })
 
         Row({ space: 10 }) {
@@ -157,7 +157,7 @@ export struct ConfigsTab {
       }
       .width('92%')
       .height(54)
-      .shadow({ radius: 18, color: '#2563EB66', offsetY: 8 })
+      .shadow({ radius: 18, color: '#662563EB', offsetY: 8 })
       .margin({ bottom: 18 })
       .scale({ x: this.importPressed ? 0.97 : 1, y: this.importPressed ? 0.97 : 1 })
       .animation({ duration: Dur.fast, curve: SpringSnappy })

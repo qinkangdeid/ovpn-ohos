@@ -23,14 +23,14 @@ export class Palette {
   static readonly primary: string = '#2563EB'
   static readonly primaryDeep: string = '#1D4ED8'
   static readonly primarySoft: string = '#DBEAFE'
-  static readonly primaryGlow: string = '#2563EB55'
+  static readonly primaryGlow: string = '#552563EB'
 
-  // 成功（已连接）
-  static readonly success: string = '#16A34A'
-  static readonly successBright: string = '#22C55E'
-  static readonly successSoft: string = '#DCFCE7'
-  static readonly successTint: string = '#F0FDF4'
-  static readonly successGlow: string = '#22C55E55'
+  // 成功（已连接）— 翠绿/薄荷，比 safety green 更冷更 premium
+  static readonly success: string = '#0D9488'
+  static readonly successBright: string = '#14B8A6'
+  static readonly successSoft: string = '#CCFBF1'
+  static readonly successTint: string = '#F0FDFA'
+  static readonly successGlow: string = '#5514B8A6'
 
   // 警告 / 危险
   static readonly warn: string = '#F59E0B'
@@ -48,27 +48,28 @@ export class Radius {
 }
 
 // ===== 阴影（双层柔和） =====
+// 注意:鸿蒙 8 位 hex 是 ARGB 顺序(alpha 在前),不是 web 的 RGBA。
 export const ShadowSoft: ShadowOptions = {
   radius: 14,
-  color: '#0F172A14',
+  color: '#140F172A',
   offsetY: 4
 }
 
 export const ShadowLifted: ShadowOptions = {
   radius: 28,
-  color: '#0F172A1F',
+  color: '#1F0F172A',
   offsetY: 12
 }
 
 export const ShadowGlowSuccess: ShadowOptions = {
   radius: 32,
-  color: '#22C55E66',
+  color: '#6614B8A6',
   offsetY: 8
 }
 
 export const ShadowGlowPrimary: ShadowOptions = {
   radius: 32,
-  color: '#2563EB55',
+  color: '#552563EB',
   offsetY: 8
 }
 
