@@ -4,37 +4,38 @@
 import { curves } from '@kit.ArkUI'
 
 // ===== 颜色 =====
+// 整体偏"素雅":去饱和后的尘雾蓝 + 茶绿(sage),不再用电子蓝/翠绿。
 export class Palette {
   // 中性色
-  static readonly bgTop: string = '#F8FAFC'
-  static readonly bgBottom: string = '#EDF1F7'
+  static readonly bgTop: string = '#F7F8FA'
+  static readonly bgBottom: string = '#EEF1F4'
   static readonly surface: string = '#FFFFFF'
-  static readonly surfaceMuted: string = '#F1F5F9'
-  static readonly border: string = '#E5E7EB'
-  static readonly divider: string = '#EEF1F5'
+  static readonly surfaceMuted: string = '#F2F4F7'
+  static readonly border: string = '#E4E7EC'
+  static readonly divider: string = '#EEF0F3'
 
   // 文字
-  static readonly textPrimary: string = '#0F172A'
-  static readonly textSecondary: string = '#475569'
-  static readonly textMuted: string = '#94A3B8'
-  static readonly textHint: string = '#CBD5E1'
+  static readonly textPrimary: string = '#1F2937'
+  static readonly textSecondary: string = '#52606D'
+  static readonly textMuted: string = '#9AA5B1'
+  static readonly textHint: string = '#CBD2D9'
 
-  // 主色（蓝）
-  static readonly primary: string = '#2563EB'
-  static readonly primaryDeep: string = '#1D4ED8'
-  static readonly primarySoft: string = '#DBEAFE'
-  static readonly primaryGlow: string = '#552563EB'
+  // 主色(尘雾蓝)
+  static readonly primary: string = '#5B7CB7'
+  static readonly primaryDeep: string = '#3F5A8A'
+  static readonly primarySoft: string = '#E4EAF3'
+  static readonly primaryGlow: string = '#3D5B7CB7'
 
-  // 成功（已连接）— 翠绿/薄荷，比 safety green 更冷更 premium
-  static readonly success: string = '#0D9488'
-  static readonly successBright: string = '#14B8A6'
-  static readonly successSoft: string = '#CCFBF1'
-  static readonly successTint: string = '#F0FDFA'
-  static readonly successGlow: string = '#5514B8A6'
+  // 成功(已连接)— 茶绿/sage,饱和度比 teal 低一档,显克制
+  static readonly success: string = '#6B8E7C'
+  static readonly successBright: string = '#84A797'
+  static readonly successSoft: string = '#E1EBE4'
+  static readonly successTint: string = '#F2F6F2'
+  static readonly successGlow: string = '#3D84A797'
 
-  // 警告 / 危险
-  static readonly warn: string = '#F59E0B'
-  static readonly danger: string = '#EF4444'
+  // 警告 / 危险 — 调色,不再是高饱和橙红
+  static readonly warn: string = '#D4A55B'
+  static readonly danger: string = '#C77B72'
 }
 
 // ===== 圆角 =====
@@ -51,25 +52,25 @@ export class Radius {
 // 注意:鸿蒙 8 位 hex 是 ARGB 顺序(alpha 在前),不是 web 的 RGBA。
 export const ShadowSoft: ShadowOptions = {
   radius: 14,
-  color: '#140F172A',
+  color: '#0E1F2937',
   offsetY: 4
 }
 
 export const ShadowLifted: ShadowOptions = {
   radius: 28,
-  color: '#1F0F172A',
+  color: '#161F2937',
   offsetY: 12
 }
 
 export const ShadowGlowSuccess: ShadowOptions = {
   radius: 32,
-  color: '#6614B8A6',
+  color: '#3D84A797',
   offsetY: 8
 }
 
 export const ShadowGlowPrimary: ShadowOptions = {
   radius: 32,
-  color: '#552563EB',
+  color: '#3D5B7CB7',
   offsetY: 8
 }
 

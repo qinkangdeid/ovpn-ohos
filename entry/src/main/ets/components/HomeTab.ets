@@ -78,19 +78,19 @@ export struct HomeTab {
   }
 
   haloColor(): string {
-    if (this.isBusy()) return '#BFDBFE'
-    return this.isConnected() ? '#6EE7B7' : '#CBD5E1'
+    if (this.isBusy()) return '#D6DEEC'
+    return this.isConnected() ? '#C8D8CD' : '#CBD2D9'
   }
 
   haloOpacity(): number {
-    if (this.isBusy()) return 0.4
-    // 连接态光晕加亮——视觉上"在发光"
-    return this.isConnected() ? 0.5 : 0.2
+    if (this.isBusy()) return 0.32
+    // 连接态光晕略亮于关闭,但整体克制,不再"高光发亮"
+    return this.isConnected() ? 0.4 : 0.18
   }
 
   titleColor(): string {
     if (this.isBusy()) return Palette.primaryDeep
-    return this.isConnected() ? '#047857' : Palette.textPrimary
+    return this.isConnected() ? '#3F6B5A' : Palette.textPrimary
   }
 
   async toggle() {
@@ -167,31 +167,31 @@ export struct HomeTab {
         .width(232).height(232).borderRadius(116)
         .linearGradient({
           angle: 45,
-          colors: [['#60A5FA', 0.0], ['#2563EB', 0.5], ['#60A5FA', 1.0]]
+          colors: [['#A5B8D6', 0.0], ['#5B7CB7', 0.5], ['#A5B8D6', 1.0]]
         })
-        .opacity(1.0)
+        .opacity(0.9)
         .rotate({ angle: this.spin })
         .animation({ duration: 1600, iterations: -1, curve: Curve.Linear })
     } else if (this.isConnected()) {
-      // 连接态：青绿色高饱和高亮流光
+      // 连接态:茶绿色低饱和流光,克制不刺眼
       Column()
         .width(232).height(232).borderRadius(116)
         .linearGradient({
           angle: 45,
-          colors: [['#6EE7B7', 0.0], ['#10B981', 0.5], ['#67E8F9', 1.0]]
+          colors: [['#BACEC1', 0.0], ['#7FA391', 0.5], ['#B7CDCC', 1.0]]
         })
-        .opacity(1.0)
+        .opacity(0.92)
         .rotate({ angle: this.spin })
         .animation({ duration: 4500, iterations: -1, curve: Curve.Linear })
     } else {
-      // 关闭态：低饱和深灰冷调，明显"熄灭"
+      // 关闭态:浅灰冷调,明显"熄灭"
       Column()
         .width(232).height(232).borderRadius(116)
         .linearGradient({
           angle: 45,
-          colors: [['#94A3B8', 0.0], ['#64748B', 0.5], ['#94A3B8', 1.0]]
+          colors: [['#B0BAC5', 0.0], ['#7C8794', 0.5], ['#B0BAC5', 1.0]]
         })
-        .opacity(0.55)
+        .opacity(0.5)
         .rotate({ angle: this.spin })
         .animation({ duration: 6000, iterations: -1, curve: Curve.Linear })
     }
@@ -204,27 +204,27 @@ export struct HomeTab {
         .width(212).height(212).borderRadius(106)
         .linearGradient({
           angle: 135,
-          colors: [['#3B82F6', 0.0], ['#1D4ED8', 1.0]]
+          colors: [['#7B9BCC', 0.0], ['#3F5A8A', 1.0]]
         })
-        .shadow({ radius: 32, color: '#662563EB', offsetY: 8 })
+        .shadow({ radius: 32, color: '#3D5B7CB7', offsetY: 8 })
     } else if (this.isConnected()) {
-      // 连接态：高亮 emerald → cyan，强光晕，一眼看出"在亮"
+      // 连接态:茶绿渐变,有"亮"但不耀眼
       Column()
         .width(212).height(212).borderRadius(106)
         .linearGradient({
           angle: 135,
-          colors: [['#34D399', 0.0], ['#10B981', 0.5], ['#06B6D4', 1.0]]
+          colors: [['#A4C0B1', 0.0], ['#7FA391', 0.5], ['#94B0AB', 1.0]]
         })
-        .shadow({ radius: 40, color: '#9910B981', offsetY: 10 })
+        .shadow({ radius: 36, color: '#557FA391', offsetY: 10 })
     } else {
-      // 关闭态：暗 slate，明显"熄灭"，与连接态形成强对比
+      // 关闭态:中灰 slate,与连接态形成温和对比
       Column()
         .width(212).height(212).borderRadius(106)
         .linearGradient({
           angle: 135,
-          colors: [['#64748B', 0.0], ['#1E293B', 1.0]]
+          colors: [['#94A3B8', 0.0], ['#475569', 1.0]]
         })
-        .shadow({ radius: 14, color: '#401E293B', offsetY: 6 })
+        .shadow({ radius: 14, color: '#2F475569', offsetY: 6 })
     }
   }
 

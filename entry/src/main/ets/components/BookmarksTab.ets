@@ -5,6 +5,7 @@
 import hilog from '@ohos.hilog';
 import { picker, fileIo as fs, fileUri } from '@kit.CoreFileKit';
 import { showToast } from './Common';
+import { Palette } from './Theme';
 
 const TAG: string = '[BookmarksTab]'
 const STORE_FILE: string = 'bookmarks.json'
@@ -138,7 +139,7 @@ struct PasteJsonDialog {
         Button('解析并导入')
           .fontSize(14)
           .fontColor(Color.White)
-          .backgroundColor('#3B82F6')
+          .backgroundColor(Palette.primary)
           .height(42)
           .layoutWeight(1)
           .borderRadius(10)
@@ -347,7 +348,7 @@ export struct BookmarksTab {
         Button('+ 导入')
           .fontSize(12)
           .fontColor(Color.White)
-          .backgroundColor('#3B82F6')
+          .backgroundColor(Palette.primary)
           .height(30)
           .borderRadius(8)
           .padding({ left: 12, right: 12 })
