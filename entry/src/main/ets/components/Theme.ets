@@ -4,38 +4,39 @@
 import { curves } from '@kit.ArkUI'
 
 // ===== 颜色 =====
-// 整体偏"素雅":去饱和后的尘雾蓝 + 茶绿(sage),不再用电子蓝/翠绿。
+// Material Design 官方色阶:Blue (主) + Green (成功) + Grey (中性)。
+// 尽量贴合 Material 3 tonal token 的语义:primary / primaryContainer (=primarySoft)。
 export class Palette {
-  // 中性色
-  static readonly bgTop: string = '#F7F8FA'
-  static readonly bgBottom: string = '#EEF1F4'
+  // 中性色 (Material Grey 系)
+  static readonly bgTop: string = '#FAFAFA'        // Grey 50
+  static readonly bgBottom: string = '#ECEFF1'     // Blue Grey 50
   static readonly surface: string = '#FFFFFF'
-  static readonly surfaceMuted: string = '#F2F4F7'
-  static readonly border: string = '#E4E7EC'
-  static readonly divider: string = '#EEF0F3'
+  static readonly surfaceMuted: string = '#F5F5F5' // Grey 100
+  static readonly border: string = '#E0E0E0'       // Grey 300
+  static readonly divider: string = '#EEEEEE'      // Grey 200
 
-  // 文字
-  static readonly textPrimary: string = '#1F2937'
-  static readonly textSecondary: string = '#52606D'
-  static readonly textMuted: string = '#9AA5B1'
-  static readonly textHint: string = '#CBD2D9'
+  // 文字 (Material 推荐的中性灰阶)
+  static readonly textPrimary: string = '#212121'   // Grey 900
+  static readonly textSecondary: string = '#424242' // Grey 800
+  static readonly textMuted: string = '#757575'     // Grey 600
+  static readonly textHint: string = '#BDBDBD'      // Grey 400
 
-  // 主色(尘雾蓝)
-  static readonly primary: string = '#5B7CB7'
-  static readonly primaryDeep: string = '#3F5A8A'
-  static readonly primarySoft: string = '#E4EAF3'
-  static readonly primaryGlow: string = '#3D5B7CB7'
+  // 主色 — Material Blue
+  static readonly primary: string = '#1976D2'      // Blue 700
+  static readonly primaryDeep: string = '#0D47A1'  // Blue 900
+  static readonly primarySoft: string = '#BBDEFB'  // Blue 100 (≈ M3 primaryContainer)
+  static readonly primaryGlow: string = '#401976D2'
 
-  // 成功(已连接)— 茶绿/sage,饱和度比 teal 低一档,显克制
-  static readonly success: string = '#6B8E7C'
-  static readonly successBright: string = '#84A797'
-  static readonly successSoft: string = '#E1EBE4'
-  static readonly successTint: string = '#F2F6F2'
-  static readonly successGlow: string = '#3D84A797'
+  // 成功 — Material Green
+  static readonly success: string = '#2E7D32'      // Green 800
+  static readonly successBright: string = '#43A047' // Green 600
+  static readonly successSoft: string = '#C8E6C9'  // Green 100
+  static readonly successTint: string = '#E8F5E9'  // Green 50
+  static readonly successGlow: string = '#4043A047'
 
-  // 警告 / 危险 — 调色,不再是高饱和橙红
-  static readonly warn: string = '#D4A55B'
-  static readonly danger: string = '#C77B72'
+  // 警告 / 危险 — Material Orange / Red
+  static readonly warn: string = '#F57C00'         // Orange 700
+  static readonly danger: string = '#D32F2F'       // Red 700
 }
 
 // ===== 圆角 =====
@@ -50,27 +51,30 @@ export class Radius {
 
 // ===== 阴影（双层柔和） =====
 // 注意:鸿蒙 8 位 hex 是 ARGB 顺序(alpha 在前),不是 web 的 RGBA。
+// Material elevation:用纯黑低 alpha,而不是带色光晕。
+// 大致对应 M3 elevation level 1 / level 3 / level 4。
 export const ShadowSoft: ShadowOptions = {
-  radius: 14,
-  color: '#0E1F2937',
-  offsetY: 4
+  radius: 8,
+  color: '#1F000000', // ~12% black, elevation 1
+  offsetY: 2
 }
 
 export const ShadowLifted: ShadowOptions = {
-  radius: 28,
-  color: '#161F2937',
-  offsetY: 12
+  radius: 16,
+  color: '#29000000', // ~16% black, elevation 3
+  offsetY: 6
 }
 
+// 状态高亮的"光晕":带主色 tint + 中等 alpha,营造 Material FAB 的层次
 export const ShadowGlowSuccess: ShadowOptions = {
-  radius: 32,
-  color: '#3D84A797',
+  radius: 24,
+  color: '#5C2E7D32', // Green 800 @ 36%
   offsetY: 8
 }
 
 export const ShadowGlowPrimary: ShadowOptions = {
-  radius: 32,
-  color: '#3D5B7CB7',
+  radius: 24,
+  color: '#5C1976D2', // Blue 700 @ 36%
   offsetY: 8
 }
 

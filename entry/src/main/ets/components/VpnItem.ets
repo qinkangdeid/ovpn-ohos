@@ -81,7 +81,7 @@ export struct VpnItem {
 
   cardShadow(): ShadowOptions {
     if (this.isConnected()) {
-      return { radius: 24, color: '#3084A797', offsetY: 8 }
+      return { radius: 24, color: '#5C2E7D32', offsetY: 8 }
     }
     return ShadowSoft
   }
@@ -294,8 +294,8 @@ export struct VpnItem {
             .fontFamily('monospace')
             .height(200)
             .borderRadius(Radius.sm)
-            .backgroundColor('#1F2937')
-            .fontColor('#E2E8F0')
+            .backgroundColor('#212121')
+            .fontColor('#EEEEEE')
             .padding(14)
             .onChange((value) => { this.cfg = value })
         }

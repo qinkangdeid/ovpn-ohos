@@ -130,7 +130,7 @@ export struct LogsTab {
           .height(34)
           .borderRadius(Radius.sm)
           .padding({ left: 16, right: 16 })
-          .shadow({ radius: 12, color: '#3D5B7CB7', offsetY: 4 })
+          .shadow({ radius: 12, color: '#5C1976D2', offsetY: 4 })
           .onClick(() => this.exportLog())
       }
       .width('92%')

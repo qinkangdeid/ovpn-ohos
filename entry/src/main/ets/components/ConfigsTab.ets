@@ -101,7 +101,7 @@ export struct ConfigsTab {
               .borderRadius(60)
               .linearGradient({
                 angle: 135,
-                colors: [['#EEF1F6', 0.0], ['#E0E5EE', 1.0]]
+                colors: [['#E3F2FD', 0.0], ['#BBDEFB', 1.0]]
               })
             Text('📂')
               .fontSize(46)
@@ -131,7 +131,7 @@ export struct ConfigsTab {
           .borderRadius(Radius.md)
           .linearGradient({
             angle: 135,
-            colors: [['#7B9BCC', 0.0], ['#5B7CB7', 1.0]]
+            colors: [['#42A5F5', 0.0], ['#1976D2', 1.0]]
           })
 
         // 顶部高光
@@ -157,7 +157,7 @@ export struct ConfigsTab {
       }
       .width('92%')
       .height(54)
-      .shadow({ radius: 18, color: '#3D5B7CB7', offsetY: 8 })
+      .shadow({ radius: 18, color: '#5C1976D2', offsetY: 8 })
       .margin({ bottom: 18 })
       .scale({ x: this.importPressed ? 0.97 : 1, y: this.importPressed ? 0.97 : 1 })
       .animation({ duration: Dur.fast, curve: SpringSnappy })

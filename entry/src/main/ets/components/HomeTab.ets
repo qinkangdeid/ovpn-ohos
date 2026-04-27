@@ -78,19 +78,19 @@ export struct HomeTab {
   }
 
   haloColor(): string {
-    if (this.isBusy()) return '#D6DEEC'
-    return this.isConnected() ? '#C8D8CD' : '#CBD2D9'
+    if (this.isBusy()) return '#BBDEFB'  // Blue 100
+    return this.isConnected() ? '#A5D6A7' : '#CFD8DC'  // Green 200 / Blue Grey 100
   }
 
   haloOpacity(): number {
-    if (this.isBusy()) return 0.32
-    // 连接态光晕略亮于关闭,但整体克制,不再"高光发亮"
-    return this.isConnected() ? 0.4 : 0.18
+    if (this.isBusy()) return 0.5
+    return this.isConnected() ? 0.6 : 0.3
   }
 
   titleColor(): string {
     if (this.isBusy()) return Palette.primaryDeep
-    return this.isConnected() ? '#3F6B5A' : Palette.textPrimary
+    // Material Green 900 for the strongest "ON" emphasis
+    return this.isConnected() ? '#1B5E20' : Palette.textPrimary
   }
 
   async toggle() {
@@ -163,35 +163,36 @@ export struct HomeTab {
   @Builder
   RingLayer() {
     if (this.isBusy()) {
+      // Busy:Material Blue 300 → 700 → 300 流光环
       Column()
         .width(232).height(232).borderRadius(116)
         .linearGradient({
           angle: 45,
-          colors: [['#A5B8D6', 0.0], ['#5B7CB7', 0.5], ['#A5B8D6', 1.0]]
+          colors: [['#64B5F6', 0.0], ['#1976D2', 0.5], ['#64B5F6', 1.0]]
         })
-        .opacity(0.9)
+        .opacity(1.0)
         .rotate({ angle: this.spin })
         .animation({ duration: 1600, iterations: -1, curve: Curve.Linear })
     } else if (this.isConnected()) {
-      // 连接态:茶绿色低饱和流光,克制不刺眼
+      // Connected:Material Green 300 → 700 → 200,带活力但 Material 色阶
       Column()
         .width(232).height(232).borderRadius(116)
         .linearGradient({
           angle: 45,
-          colors: [['#BACEC1', 0.0], ['#7FA391', 0.5], ['#B7CDCC', 1.0]]
+          colors: [['#81C784', 0.0], ['#388E3C', 0.5], ['#A5D6A7', 1.0]]
         })
-        .opacity(0.92)
+        .opacity(1.0)
         .rotate({ angle: this.spin })
         .animation({ duration: 4500, iterations: -1, curve: Curve.Linear })
     } else {
-      // 关闭态:浅灰冷调,明显"熄灭"
+      // Idle:Material Blue Grey 200/600/200,明显"熄灭"
       Column()
         .width(232).height(232).borderRadius(116)
         .linearGradient({
           angle: 45,
-          colors: [['#B0BAC5', 0.0], ['#7C8794', 0.5], ['#B0BAC5', 1.0]]
+          colors: [['#B0BEC5', 0.0], ['#546E7A', 0.5], ['#B0BEC5', 1.0]]
         })
-        .opacity(0.5)
+        .opacity(0.55)
         .rotate({ angle: this.spin })
         .animation({ duration: 6000, iterations: -1, curve: Curve.Linear })
     }
@@ -200,31 +201,32 @@ export struct HomeTab {
   @Builder
   InnerLayer() {
     if (this.isBusy()) {
+      // Material Blue 400 → 800,Material FAB 风格
       Column()
         .width(212).height(212).borderRadius(106)
         .linearGradient({
           angle: 135,
-          colors: [['#7B9BCC', 0.0], ['#3F5A8A', 1.0]]
+          colors: [['#42A5F5', 0.0], ['#1565C0', 1.0]]
         })
-        .shadow({ radius: 32, color: '#3D5B7CB7', offsetY: 8 })
+        .shadow({ radius: 28, color: '#5C1976D2', offsetY: 10 })
     } else if (this.isConnected()) {
-      // 连接态:茶绿渐变,有"亮"但不耀眼
+      // Material Green 400 → 700 → 800,有"在亮"的感觉
       Column()
         .width(212).height(212).borderRadius(106)
         .linearGradient({
           angle: 135,
-          colors: [['#A4C0B1', 0.0], ['#7FA391', 0.5], ['#94B0AB', 1.0]]
+          colors: [['#66BB6A', 0.0], ['#388E3C', 0.5], ['#2E7D32', 1.0]]
         })
-        .shadow({ radius: 36, color: '#557FA391', offsetY: 10 })
+        .shadow({ radius: 32, color: '#702E7D32', offsetY: 10 })
     } else {
-      // 关闭态:中灰 slate,与连接态形成温和对比
+      // Material Blue Grey 400 → 800,熄灭对比
       Column()
         .width(212).height(212).borderRadius(106)
         .linearGradient({
           angle: 135,
-          colors: [['#94A3B8', 0.0], ['#475569', 1.0]]
+          colors: [['#90A4AE', 0.0], ['#37474F', 1.0]]
         })
-        .shadow({ radius: 14, color: '#2F475569', offsetY: 6 })
+        .shadow({ radius: 14, color: '#3D000000', offsetY: 6 })
     }
   }
 
