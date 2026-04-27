@@ -1,4 +1,4 @@
-// 首页 Tab：超大 ON/OFF 圆形按钮 + 状态信息
+// 首页 Tab：超大圆形按钮（呼吸光晕 + 流动渐变环 + ON/OFF 平滑过渡）+ 状态信息
 // 点击大圆切换"上次使用过的配置"的连接状态。lastUsed 来自 ConfigsTab 启动 VPN 时写入。
 
 import hilog from '@ohos.hilog';
@@ -7,11 +7,25 @@ import { vpnExtension as vpnExt } from '@kit.NetworkKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { preferences } from '@kit.ArkData';
 import { showToast } from './Common';
+import {
+  Palette,
+  Radius,
+  ShadowGlowSuccess,
+  ShadowGlowPrimary,
+  SpringResponsive,
+  SpringSnappy,
+  Dur
+} from './Theme';
 
 const TAG: string = '[HomeTab]'
 const bundleName = BUNDLE_NAME
 const abilityName = 'OvpnExtAbility'
 const CREDS_PREF = 'vpn_creds'
+
+interface GradientOpts {
+  angle: number
+  colors: Array<[string, number]>
+}
 
 async function getCredsStore(ctx: Context): Promise<preferences.Preferences> {
   return await preferences.getPreferences(ctx, { name: CREDS_PREF })
@@ -24,10 +38,20 @@ export struct HomeTab {
   @StorageLink('vpn.busyName') busyName: string = ''
   @StorageLink('vpn.lastUsedName') lastUsedName: string = ''
   @State now: number = Date.now()
+  // 大圆按钮交互态
+  @State pressed: boolean = false
+  // 呼吸光晕缩放
+  @State haloScale: number = 1
+  // 连接中旋转角
+  @State spin: number = 0
   private timer: number = -1
 
   aboutToAppear() {
     this.timer = setInterval(() => { this.now = Date.now() }, 1000) as number
+    // 启动呼吸（一次状态变更，靠 .animation iterations 持续往返）
+    this.haloScale = 1.06
+    // 启动旋转
+    this.spin = 360
   }
 
   aboutToDisappear() {
@@ -40,6 +64,7 @@ export struct HomeTab {
   isConnected(): boolean { return !!this.activeName && !this.busyName }
   isConnecting(): boolean { return !!this.busyName && !this.activeName }
   isDisconnecting(): boolean { return !!this.busyName && !!this.activeName }
+  isBusy(): boolean { return this.isConnecting() || this.isDisconnecting() }
   hasSelection(): boolean { return !!this.lastUsedName }
 
   formatDuration(ms: number): string {
@@ -60,23 +85,71 @@ export struct HomeTab {
   }
 
   centerLabel(): string {
-    if (this.isConnecting() || this.isDisconnecting()) return '···'
+    if (this.isBusy()) return '···'
     return this.isConnected() ? 'ON' : 'OFF'
   }
 
-  ringColor(): string {
-    if (this.isConnecting() || this.isDisconnecting()) return '#3B82F6'
-    return this.isConnected() ? '#22C55E' : '#94A3B8'
-  }
-
   haloColor(): string {
-    if (this.isConnecting() || this.isDisconnecting()) return '#BFDBFE'
+    if (this.isBusy()) return Palette.primarySoft
     return this.isConnected() ? '#86EFAC' : '#E2E8F0'
   }
 
   titleColor(): string {
-    if (this.isConnecting() || this.isDisconnecting()) return '#1D4ED8'
-    return this.isConnected() ? '#15803D' : '#1F2937'
+    if (this.isBusy()) return Palette.primaryDeep
+    return this.isConnected() ? '#15803D' : Palette.textPrimary
+  }
+
+  // 流动渐变环 — 三色重复造出"高光带"扫过的视觉
+  ringGradient(): GradientOpts {
+    if (this.isBusy()) {
+      return {
+        angle: 45,
+        colors: [['#60A5FA', 0.0], ['#2563EB', 0.5], ['#60A5FA', 1.0]]
+      }
+    }
+    if (this.isConnected()) {
+      return {
+        angle: 45,
+        colors: [['#86EFAC', 0.0], ['#22C55E', 0.5], ['#86EFAC', 1.0]]
+      }
+    }
+    return {
+      angle: 45,
+      colors: [['#CBD5E1', 0.0], ['#94A3B8', 0.5], ['#CBD5E1', 1.0]]
+    }
+  }
+
+  // 内圆主体渐变（顶亮底深，制造立体感）
+  innerGradient(): GradientOpts {
+    if (this.isBusy()) {
+      return {
+        angle: 135,
+        colors: [['#3B82F6', 0.0], ['#1D4ED8', 1.0]]
+      }
+    }
+    if (this.isConnected()) {
+      return {
+        angle: 135,
+        colors: [['#34D399', 0.0], ['#15803D', 1.0]]
+      }
+    }
+    return {
+      angle: 135,
+      colors: [['#CBD5E1', 0.0], ['#64748B', 1.0]]
+    }
+  }
+
+  glassHighlight(): GradientOpts {
+    return {
+      angle: 180,
+      colors: [['#FFFFFF66', 0.0], ['#FFFFFF00', 0.55]]
+    }
+  }
+
+  coreShadow(): ShadowOptions {
+    if (this.isBusy()) return ShadowGlowPrimary
+    if (this.isConnected()) return ShadowGlowSuccess
+    return { radius: 18, color: '#94A3B855', offsetY: 8 }
   }
 
   async toggle() {
@@ -108,7 +181,6 @@ export struct HomeTab {
     try {
       const fullPath = ctx.filesDir + '/ovpn/' + this.lastUsedName
       const cfg = await fs.readText(fullPath)
-      // 加载凭据（如果有）
       let username = ''
       let password = ''
       try {
@@ -150,80 +222,136 @@ export struct HomeTab {
     Column() {
       Blank()
 
-      // 大圆按钮
+      // === 巨型按钮（多层堆叠） ===
       Stack() {
-        Circle({ width: 260, height: 260 })
-          .fill(this.haloColor())
-          .opacity(0.35)
-        Circle({ width: 200, height: 200 })
-          .fill(this.ringColor())
-          .shadow({ radius: 32, color: this.ringColor() + '55', offsetY: 10 })
+        // 1. 远端柔光（呼吸缩放）
+        Column()
+          .width(300)
+          .height(300)
+          .borderRadius(150)
+          .backgroundColor(this.haloColor())
+          .opacity(0.28)
+          .scale({ x: this.haloScale, y: this.haloScale })
+          .animation({
+            duration: Dur.breathe,
+            iterations: -1,
+            curve: Curve.EaseInOut,
+            playMode: PlayMode.Alternate
+          })
+
+        // 2. 流动渐变环（旋转）
+        Column()
+          .width(232)
+          .height(232)
+          .borderRadius(116)
+          .linearGradient(this.ringGradient())
+          .opacity(this.isBusy() ? 1.0 : 0.85)
+          .rotate({ angle: this.spin })
+          .animation({
+            duration: this.isBusy() ? 1600 : 6000,
+            iterations: -1,
+            curve: Curve.Linear
+          })
+
+        // 3. 内圆（实心 + 主阴影）
+        Column()
+          .width(212)
+          .height(212)
+          .borderRadius(106)
+          .linearGradient(this.innerGradient())
+          .shadow(this.coreShadow())
+
+        // 4. 内圆顶部高光（玻璃质感）
+        Column()
+          .width(212)
+          .height(212)
+          .borderRadius(106)
+          .linearGradient(this.glassHighlight())
+
+        // 5. 中心文字
         Text(this.centerLabel())
-          .fontSize(this.isConnecting() || this.isDisconnecting() ? 64 : 56)
+          .fontSize(this.isBusy() ? 56 : 60)
           .fontColor(Color.White)
           .fontWeight(FontWeight.Bold)
-          .letterSpacing(2)
+          .letterSpacing(this.isBusy() ? 0 : 4)
+          .animation({ duration: Dur.base, curve: SpringResponsive })
       }
-      .width(260)
-      .height(260)
+      .width(300)
+      .height(300)
+      .scale({ x: this.pressed ? 0.95 : 1, y: this.pressed ? 0.95 : 1 })
+      .animation({ duration: Dur.fast, curve: SpringSnappy })
+      .onTouch((e) => {
+        if (e.type === TouchType.Down) this.pressed = true
+        else if (e.type === TouchType.Up || e.type === TouchType.Cancel) this.pressed = false
+      })
       .onClick(() => this.toggle())
 
-      // 主标题
+      // === 主标题 ===
       Text(this.statusTitle())
         .fontSize(28)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.titleColor())
-        .margin({ top: 28 })
+        .margin({ top: 32 })
+        .animation({ duration: Dur.base, curve: SpringResponsive })
 
-      // 副信息
+      // === 副信息（按状态变化） ===
       if (this.isConnected()) {
-        Row() {
+        Row({ space: 6 }) {
+          Column().width(6).height(6).borderRadius(3).backgroundColor(Palette.success)
           Text(this.activeName)
-            .fontSize(14)
-            .fontColor('#16A34A')
+            .fontSize(13)
+            .fontColor(Palette.success)
             .fontWeight(FontWeight.Medium)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
-        .padding({ left: 14, right: 14, top: 5, bottom: 5 })
-        .backgroundColor('#DCFCE7')
-        .borderRadius(20)
-        .margin({ top: 12 })
+        .padding({ left: 12, right: 14, top: 6, bottom: 6 })
+        .backgroundColor(Palette.successSoft)
+        .borderRadius(Radius.pill)
+        .margin({ top: 14 })
 
         Text(this.formatDuration(this.now - this.connectedAt))
-          .fontSize(20)
+          .fontSize(22)
           .fontFamily('monospace')
-          .fontColor('#374151')
+          .fontColor(Palette.textSecondary)
           .fontWeight(FontWeight.Medium)
-          .margin({ top: 12 })
-      } else if (this.isConnecting() || this.isDisconnecting()) {
-        Text(this.busyName)
-          .fontSize(14)
-          .fontColor('#3B82F6')
-          .fontWeight(FontWeight.Medium)
-          .margin({ top: 10 })
+          .letterSpacing(2)
+          .margin({ top: 14 })
+      } else if (this.isBusy()) {
+        Row({ space: 6 }) {
+          Column().width(6).height(6).borderRadius(3).backgroundColor(Palette.primary)
+          Text(this.busyName)
+            .fontSize(13)
+            .fontColor(Palette.primaryDeep)
+            .fontWeight(FontWeight.Medium)
+        }
+        .padding({ left: 12, right: 14, top: 6, bottom: 6 })
+        .backgroundColor(Palette.primarySoft)
+        .borderRadius(Radius.pill)
+        .margin({ top: 14 })
       } else if (this.hasSelection()) {
         Text('点击连接')
           .fontSize(13)
-          .fontColor('#9CA3AF')
-          .margin({ top: 10 })
-        Row() {
+          .fontColor(Palette.textMuted)
+          .margin({ top: 14 })
+        Row({ space: 6 }) {
+          Column().width(6).height(6).borderRadius(3).backgroundColor(Palette.textMuted)
           Text(this.lastUsedName)
             .fontSize(13)
-            .fontColor('#374151')
+            .fontColor(Palette.textSecondary)
             .fontWeight(FontWeight.Medium)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
-        .padding({ left: 12, right: 12, top: 4, bottom: 4 })
-        .backgroundColor('#F1F5F9')
-        .borderRadius(20)
-        .margin({ top: 6 })
+        .padding({ left: 12, right: 14, top: 6, bottom: 6 })
+        .backgroundColor(Palette.surfaceMuted)
+        .borderRadius(Radius.pill)
+        .margin({ top: 8 })
       } else {
         Text('请先去 配置 tab 选择 VPN')
           .fontSize(13)
-          .fontColor('#9CA3AF')
-          .margin({ top: 10 })
+          .fontColor(Palette.textMuted)
+          .margin({ top: 14 })
       }
 
       Blank()

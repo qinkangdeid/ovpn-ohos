@@ -3,6 +3,7 @@
 import { fileIo as fs, picker } from '@kit.CoreFileKit';
 import { BusinessError } from '@ohos.base';
 import { showToast } from './Common';
+import { Palette, Radius, ShadowSoft } from './Theme';
 
 @Component
 export struct LogsTab {
@@ -106,48 +107,66 @@ export struct LogsTab {
   build() {
     Column() {
       // 顶部操作行
-      Row({ space: 8 }) {
+      Row({ space: 10 }) {
         Text('运行日志')
-          .fontSize(14)
+          .fontSize(13)
           .fontWeight(FontWeight.Medium)
-          .fontColor('#374151')
+          .fontColor(Palette.textSecondary)
+          .letterSpacing(0.5)
           .layoutWeight(1)
         Button('清空')
-          .fontSize(13)
-          .fontColor('#6B7280')
-          .backgroundColor('#FFFFFF')
-          .height(32)
-          .borderRadius(8)
-          .padding({ left: 14, right: 14 })
+          .fontSize(12)
+          .fontColor(Palette.textSecondary)
+          .backgroundColor(Palette.surface)
+          .height(34)
+          .borderRadius(Radius.sm)
+          .padding({ left: 16, right: 16 })
+          .shadow(ShadowSoft)
           .onClick(() => this.clearLog())
         Button('导出')
-          .fontSize(13)
+          .fontSize(12)
           .fontColor(Color.White)
-          .backgroundColor('#3B82F6')
-          .height(32)
-          .borderRadius(8)
-          .padding({ left: 14, right: 14 })
+          .backgroundColor(Palette.primary)
+          .height(34)
+          .borderRadius(Radius.sm)
+          .padding({ left: 16, right: 16 })
+          .shadow({ radius: 12, color: '#2563EB55', offsetY: 4 })
           .onClick(() => this.exportLog())
       }
       .width('92%')
-      .padding({ top: 14, bottom: 8 })
+      .padding({ top: 14, bottom: 10 })
 
-      // 日志面板
-      Scroll(this.scroller) {
-        Text(this.logContent)
-          .fontSize(12)
-          .fontFamily('monospace')
-          .textAlign(TextAlign.Start)
+      // 日志面板（双层：外层渐变描边 + 内层深色）
+      Stack() {
+        // 渐变描边
+        Column()
           .width('100%')
-          .padding(12)
-          .fontColor('#E2E8F0')
+          .height('100%')
+          .borderRadius(Radius.md)
+          .linearGradient({
+            angle: 135,
+            colors: [['#1E293B', 0.0], ['#0F172A', 1.0]]
+          })
+
+        Scroll(this.scroller) {
+          Text(this.logContent)
+            .fontSize(12)
+            .fontFamily('monospace')
+            .textAlign(TextAlign.Start)
+            .width('100%')
+            .padding(14)
+            .fontColor('#CBD5E1')
+        }
+        .scrollBar(BarState.Off)
+        .width('100%')
+        .height('100%')
       }
-      .scrollBar(BarState.Off)
       .width('92%')
       .layoutWeight(1)
-      .backgroundColor('#0F172A')
-      .borderRadius(12)
-      .margin({ bottom: 16 })
+      .borderRadius(Radius.md)
+      .clip(true)
+      .shadow({ radius: 16, color: '#0F172A33', offsetY: 6 })
+      .margin({ bottom: 18 })
     }
     .width('100%')
     .height('100%')

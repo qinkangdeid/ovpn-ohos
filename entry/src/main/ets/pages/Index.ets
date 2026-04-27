@@ -7,6 +7,13 @@ import { HomeTab } from '../components/HomeTab';
 import { ConfigsTab } from '../components/ConfigsTab';
 import { LogsTab } from '../components/LogsTab';
 import { BookmarksTab } from '../components/BookmarksTab';
+import {
+  Palette,
+  Radius,
+  SpringResponsive,
+  SpringSnappy,
+  Dur
+} from '../components/Theme';
 
 const TAG: string = '[PageIndex]'
 
@@ -68,29 +75,127 @@ try {
 @Component
 struct Index {
   @State currentTab: number = 0
+  @StorageLink('vpn.activeName') activeName: string = ''
+  @StorageLink('vpn.busyName') busyName: string = ''
+  @StorageLink('vpn.connectedAt') connectedAt: number = 0
+  @State now: number = Date.now()
+  @State pillPulse: number = 1
   private tabsController: TabsController = new TabsController()
+  private timer: number = -1
 
   async aboutToAppear() {
     ctx = this.getUIContext()
-    // 初始化 AppStorage 默认值
     if (AppStorage.get<string>('vpn.activeName') === undefined) AppStorage.setOrCreate('vpn.activeName', '')
     if (AppStorage.get<string>('vpn.busyName') === undefined) AppStorage.setOrCreate('vpn.busyName', '')
     if (AppStorage.get<number>('vpn.connectedAt') === undefined) AppStorage.setOrCreate('vpn.connectedAt', 0)
     if (AppStorage.get<string>('vpn.lastUsedName') === undefined) AppStorage.setOrCreate('vpn.lastUsedName', '')
+    this.timer = setInterval(() => { this.now = Date.now() }, 1000) as number
+    this.pillPulse = 1.18
+  }
+
+  aboutToDisappear() {
+    if (this.timer !== -1) {
+      clearInterval(this.timer)
+      this.timer = -1
+    }
+  }
+
+  isConnected(): boolean { return !!this.activeName && !this.busyName }
+  isBusy(): boolean { return !!this.busyName }
+
+  durationText(): string {
+    const ms = this.now - this.connectedAt
+    if (ms <= 0) return ''
+    const s = Math.floor(ms / 1000)
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    const sec = s % 60
+    const pad: (n: number) => string = (n) => n.toString().padStart(2, '0')
+    return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`
+  }
+
+  // === 顶部全局状态药丸 ===
+  @Builder
+  StatusPill() {
+    if (this.isBusy()) {
+      Row({ space: 6 }) {
+        Column()
+          .width(6)
+          .height(6)
+          .borderRadius(3)
+          .backgroundColor(Palette.primary)
+          .scale({ x: this.pillPulse, y: this.pillPulse })
+          .animation({
+            duration: 900,
+            iterations: -1,
+            curve: Curve.EaseInOut,
+            playMode: PlayMode.Alternate
+          })
+        Text(this.busyName.replace(/\.ovpn$/, '') + ' 处理中')
+          .fontSize(11)
+          .fontColor(Palette.primaryDeep)
+          .fontWeight(FontWeight.Medium)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .padding({ left: 9, right: 12, top: 5, bottom: 5 })
+      .backgroundColor(Palette.primarySoft)
+      .borderRadius(Radius.pill)
+    } else if (this.isConnected()) {
+      Row({ space: 6 }) {
+        Column()
+          .width(6)
+          .height(6)
+          .borderRadius(3)
+          .backgroundColor(Palette.successBright)
+          .scale({ x: this.pillPulse, y: this.pillPulse })
+          .animation({
+            duration: 1200,
+            iterations: -1,
+            curve: Curve.EaseInOut,
+            playMode: PlayMode.Alternate
+          })
+        Text(this.durationText())
+          .fontSize(11)
+          .fontFamily('monospace')
+          .fontColor(Palette.success)
+          .fontWeight(FontWeight.Medium)
+      }
+      .padding({ left: 9, right: 12, top: 5, bottom: 5 })
+      .backgroundColor(Palette.successSoft)
+      .borderRadius(Radius.pill)
+    }
   }
 
   @Builder
   TabBarItem(label: string, idx: number, icon: Resource) {
     Column() {
+      // 顶部指示条（淡入 + 缩放）
+      Column()
+        .width(this.currentTab === idx ? 22 : 0)
+        .height(3)
+        .borderRadius(2)
+        .backgroundColor(Palette.primary)
+        .opacity(this.currentTab === idx ? 1 : 0)
+        .animation({ duration: Dur.base, curve: SpringResponsive })
+
       Image(icon)
         .width(22)
         .height(22)
-        .fillColor(this.currentTab === idx ? '#3B82F6' : '#9CA3AF')
+        .fillColor(this.currentTab === idx ? Palette.primary : Palette.textMuted)
+        .margin({ top: 6 })
+        .scale({
+          x: this.currentTab === idx ? 1.08 : 1,
+          y: this.currentTab === idx ? 1.08 : 1
+        })
+        .animation({ duration: Dur.base, curve: SpringSnappy })
+
       Text(label)
         .fontSize(11)
-        .fontColor(this.currentTab === idx ? '#3B82F6' : '#6B7280')
+        .fontColor(this.currentTab === idx ? Palette.primary : Palette.textSecondary)
         .fontWeight(this.currentTab === idx ? FontWeight.Medium : FontWeight.Normal)
         .margin({ top: 3 })
+        .animation({ duration: Dur.base, curve: SpringResponsive })
     }
     .width('100%')
     .height('100%')
@@ -99,17 +204,18 @@ struct Index {
 
   build() {
     Column() {
-      // 顶部 wordmark
+      // === 顶栏：wordmark + 全局状态药丸 ===
       Row() {
         Image($r('app.media.logo_splash'))
           .height(22)
           .objectFit(ImageFit.Contain)
         Blank()
+        this.StatusPill()
       }
       .width('92%')
-      .padding({ top: 12, bottom: 4 })
+      .padding({ top: 14, bottom: 6 })
 
-      // Tabs 容器
+      // === Tabs ===
       Tabs({ barPosition: BarPosition.End, controller: this.tabsController, index: this.currentTab }) {
         TabContent() {
           HomeTab()
@@ -129,16 +235,17 @@ struct Index {
       }
       .layoutWeight(1)
       .barWidth('100%')
-      .barHeight(64)
+      .barHeight(68)
       .barMode(BarMode.Fixed)
       .scrollable(true)
+      .barBackgroundColor('#FFFFFFCC')
       .onChange((idx: number) => { this.currentTab = idx })
     }
     .width('100%')
     .height('100%')
     .linearGradient({
       angle: 180,
-      colors: [['#F8FAFC', 0.0], ['#EEF2F7', 1.0]]
+      colors: [[Palette.bgTop, 0.0], [Palette.bgBottom, 1.0]]
     })
   }
 }

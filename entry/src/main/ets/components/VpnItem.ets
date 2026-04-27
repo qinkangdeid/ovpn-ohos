@@ -4,6 +4,14 @@ import { vpnExtension as vpnExt } from '@kit.NetworkKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { preferences } from '@kit.ArkData';
 import { showToast } from '../components/Common';
+import {
+  Palette,
+  Radius,
+  ShadowSoft,
+  SpringResponsive,
+  SpringSnappy,
+  Dur
+} from './Theme';
 
 const TAG: string = '[ItemVpn]'
 const bundleName = BUNDLE_NAME
@@ -24,31 +32,29 @@ export struct VpnItem {
   @State display: boolean = false
   @State username: string = ''
   @State password: string = ''
+  @State pressed: boolean = false
+  @State pulseScale: number = 1
   @StorageLink('vpn.activeName') activeName: string = ''
   @StorageLink('vpn.busyName') busyName: string = ''
 
-  // 检测配置是否要求账号密码登录
+  aboutToAppear() {
+    this.loadCreds()
+    // 启动状态点 pulse（在 .animation 上配 iterations -1 + Alternate）
+    this.pulseScale = 1.6
+  }
+
   needsAuth(): boolean {
     return /^auth-user-pass[ \t\r]*(?:[#;].*)?$/m.test(this.cfg)
   }
 
-  // 推导：当前条目处于"已连接"或"正在连接/断开"状态
   isOn(): boolean {
     return this.name === this.activeName || this.name === this.busyName
   }
 
-  // 整个 App 是否处于忙碌（其他卡片要禁用）
-  someoneBusy(): boolean {
-    return this.busyName !== ''
-  }
-
-  selfBusy(): boolean {
-    return this.name === this.busyName
-  }
-
-  isConnected(): boolean {
-    return this.name === this.activeName && !this.selfBusy()
-  }
+  someoneBusy(): boolean { return this.busyName !== '' }
+  selfBusy(): boolean { return this.name === this.busyName }
+  isConnected(): boolean { return this.name === this.activeName && !this.selfBusy() }
+  isBlocked(): boolean { return this.activeName !== '' && this.activeName !== this.name && !this.someoneBusy() }
 
   statusLabel(): string {
     if (this.selfBusy()) {
@@ -60,13 +66,24 @@ export struct VpnItem {
   }
 
   statusColor(): string {
-    if (this.selfBusy()) return '#3B82F6'
-    if (this.isConnected()) return '#16A34A'
-    return '#9CA3AF'
+    if (this.selfBusy()) return Palette.primary
+    if (this.isConnected()) return Palette.success
+    if (this.needsAuth() && (!this.username || !this.password)) return Palette.warn
+    return Palette.textMuted
   }
 
-  aboutToAppear() {
-    this.loadCreds()
+  statusDotColor(): string {
+    if (this.selfBusy()) return Palette.primary
+    if (this.isConnected()) return Palette.successBright
+    if (this.needsAuth() && (!this.username || !this.password)) return Palette.warn
+    return Palette.textMuted
+  }
+
+  cardShadow(): ShadowOptions {
+    if (this.isConnected()) {
+      return { radius: 24, color: '#22C55E40', offsetY: 8 }
+    }
+    return ShadowSoft
   }
 
   async loadCreds() {
@@ -101,43 +118,60 @@ export struct VpnItem {
     Column() {
       // 顶部行：状态点 + 标题/状态文字 + Toggle + chevron
       Row() {
-        // 状态点（已连接时带光晕环）
+        // === 状态点（带 pulse 光环） ===
         Stack() {
-          if (this.isConnected()) {
-            Circle({ width: 18, height: 18 })
-              .fill('#22C55E')
-              .opacity(0.18)
+          // 外层 pulse 光环：仅连接态可见
+          if (this.isConnected() || this.selfBusy()) {
+            Column()
+              .width(20)
+              .height(20)
+              .borderRadius(10)
+              .backgroundColor(this.statusDotColor())
+              .opacity(0.25)
+              .scale({ x: this.pulseScale, y: this.pulseScale })
+              .animation({
+                duration: 1400,
+                iterations: -1,
+                curve: Curve.EaseInOut,
+                playMode: PlayMode.Alternate
+              })
           }
-          Circle({ width: 10, height: 10 })
-            .fill(this.statusColor())
+          Column()
+            .width(10)
+            .height(10)
+            .borderRadius(5)
+            .backgroundColor(this.statusDotColor())
         }
-        .width(18)
-        .height(18)
-        .margin({ right: 12 })
+        .width(20)
+        .height(20)
+        .margin({ right: 14 })
 
+        // === 标题 + 状态 ===
         Column() {
           Text(this.name)
-            .fontSize(16)
+            .fontSize(15)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#1F2937')
+            .fontColor(Palette.textPrimary)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
           Text(this.statusLabel())
             .fontSize(11)
             .fontColor(this.statusColor())
-            .margin({ top: 2 })
+            .margin({ top: 3 })
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
         .onClick(() => { this.display = !this.display })
 
+        // === Toggle + 守卫遮罩 ===
         Stack() {
           Toggle({ type: ToggleType.Switch, isOn: this.isOn() })
-            .selectedColor('#22C55E')
+            .width(50)
+            .height(28)
+            .selectedColor(Palette.successBright)
             .switchPointColor(Color.White)
             .enabled(!this.someoneBusy())
             .onChange(async (isOn) => {
-              // 防抖：状态已经一致就跳过
               if (isOn === this.isOn()) return
               if (isOn) {
                 if (this.needsAuth() && (!this.username || !this.password)) {
@@ -146,7 +180,6 @@ export struct VpnItem {
                   return
                 }
                 AppStorage.setOrCreate('vpn.busyName', this.name)
-                // 记下"上次使用"，供 HomeTab 大圆按钮直接 toggle
                 AppStorage.setOrCreate('vpn.lastUsedName', this.name)
                 try {
                   await vpnExt.startVpnExtensionAbility({
@@ -171,7 +204,6 @@ export struct VpnItem {
                   await vpnExt.stopVpnExtensionAbility({ bundleName, abilityName })
                   showToast(this.getUIContext(), 'VPN 已停止', 1200);
                   hilog.info(0x0000, TAG, '%{public}s', 'stop vpnExt Success');
-                  // stop 调用本身不一定有 DESTROY 事件回来，主动清状态作为兜底
                   AppStorage.setOrCreate('vpn.activeName', '')
                   AppStorage.setOrCreate('vpn.connectedAt', 0)
                   AppStorage.setOrCreate('vpn.busyName', '')
@@ -183,95 +215,101 @@ export struct VpnItem {
               }
             })
 
-          // 单选守卫：已有别的配置选中（非 busy 中）时，盖一层透明拦截层吃掉点击并提示
-          if (this.activeName !== '' && this.activeName !== this.name && !this.someoneBusy()) {
+          // 单选守卫：已有别的配置选中（非 busy 中）时盖一层透明拦截层
+          if (this.isBlocked()) {
             Column()
-              .width('100%')
-              .height('100%')
+              .width(50)
+              .height(28)
               .onClick(() => {
                 showToast(this.getUIContext(),
                   `请先关闭已选中的「${this.activeName}」`, 2400)
               })
           }
         }
+        .width(50)
+        .height(28)
 
-        // chevron 替代旧"展开/收起"文字按钮
+        // chevron
         Text('▾')
-          .fontSize(16)
-          .fontColor('#9CA3AF')
-          .margin({ left: 12 })
+          .fontSize(14)
+          .fontColor(Palette.textMuted)
+          .margin({ left: 14 })
           .rotate({ angle: this.display ? 180 : 0 })
-          .animation({ duration: 180, curve: Curve.EaseInOut })
+          .animation({ duration: Dur.base, curve: SpringResponsive })
           .onClick(() => { this.display = !this.display })
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+      .padding({ left: 18, right: 18, top: 16, bottom: 16 })
 
-      // 展开区
+      // === 展开区 ===
       if (this.display) {
-        Divider().color('#E5E7EB').margin({ left: 16, right: 16 })
+        Divider()
+          .color(Palette.divider)
+          .margin({ left: 18, right: 18 })
 
         if (this.needsAuth()) {
           Column() {
             Text('登录凭据')
-              .fontSize(12)
-              .fontColor('#6B7280')
+              .fontSize(11)
+              .fontColor(Palette.textSecondary)
               .fontWeight(FontWeight.Medium)
-              .margin({ top: 14, bottom: 8 })
+              .letterSpacing(0.5)
+              .margin({ top: 16, bottom: 10 })
 
             TextInput({ placeholder: '用户名', text: this.username })
-              .placeholderColor('#9CA3AF')
-              .fontSize(15)
+              .placeholderColor(Palette.textMuted)
+              .fontSize(14)
               .height(44)
-              .borderRadius(10)
-              .backgroundColor('#F8FAFC')
-              .padding({ left: 12, right: 12 })
+              .borderRadius(Radius.sm)
+              .backgroundColor(Palette.surfaceMuted)
+              .padding({ left: 14, right: 14 })
               .margin({ bottom: 8 })
               .onChange((v) => { this.username = v; this.saveCreds() })
 
             TextInput({ placeholder: '密码', text: this.password })
               .type(InputType.Password)
-              .placeholderColor('#9CA3AF')
-              .fontSize(15)
+              .placeholderColor(Palette.textMuted)
+              .fontSize(14)
               .height(44)
-              .borderRadius(10)
-              .backgroundColor('#F8FAFC')
-              .padding({ left: 12, right: 12 })
+              .borderRadius(Radius.sm)
+              .backgroundColor(Palette.surfaceMuted)
+              .padding({ left: 14, right: 14 })
               .onChange((v) => { this.password = v; this.saveCreds() })
           }
           .alignItems(HorizontalAlign.Start)
           .width('100%')
-          .padding({ left: 16, right: 16 })
+          .padding({ left: 18, right: 18 })
         }
 
         Column() {
           Text('OpenVPN 配置')
-            .fontSize(12)
-            .fontColor('#6B7280')
+            .fontSize(11)
+            .fontColor(Palette.textSecondary)
             .fontWeight(FontWeight.Medium)
-            .margin({ top: 14, bottom: 8 })
+            .letterSpacing(0.5)
+            .margin({ top: 16, bottom: 10 })
 
           TextArea({ text: this.cfg })
             .fontSize(12)
             .fontFamily('monospace')
-            .height(180)
-            .borderRadius(10)
+            .height(200)
+            .borderRadius(Radius.sm)
             .backgroundColor('#0F172A')
             .fontColor('#E2E8F0')
-            .padding(12)
+            .padding(14)
             .onChange((value) => { this.cfg = value })
         }
         .alignItems(HorizontalAlign.Start)
         .width('100%')
-        .padding({ left: 16, right: 16 })
+        .padding({ left: 18, right: 18 })
 
         Row() {
           Button('保存修改')
             .fontSize(14)
             .fontColor(Color.White)
-            .backgroundColor('#3B82F6')
-            .height(40)
-            .borderRadius(10)
+            .backgroundColor(Palette.primary)
+            .height(42)
+            .borderRadius(Radius.sm)
             .layoutWeight(1)
             .onClick(async () => {
               try {
@@ -284,18 +322,22 @@ export struct VpnItem {
                 hilog.error(0x0000, TAG, 'SaveBtnErr: %{public}s', JSON.stringify(e));
               }
             })
-        }.width('100%').padding({ left: 16, right: 16, top: 12, bottom: 14 })
+        }.width('100%').padding({ left: 18, right: 18, top: 14, bottom: 16 })
       }
     }
     .width('92%')
-    .margin({ top: 5, bottom: 5 })
-    .backgroundColor(this.isConnected() ? '#F0FDF4' : Color.White)
-    .borderRadius(16)
-    .shadow({
-      radius: this.isConnected() ? 16 : 8,
-      color: this.isConnected() ? '#22C55E33' : '#0A000000',
-      offsetY: this.isConnected() ? 4 : 2
+    .margin({ top: 6, bottom: 6 })
+    .backgroundColor(this.isConnected() ? Palette.successTint : Palette.surface)
+    .borderRadius(Radius.lg)
+    .shadow(this.cardShadow())
+    .border(this.isConnected()
+      ? { width: { left: 4 }, color: { left: Palette.successBright } }
+      : { width: 0 })
+    .scale({ x: this.pressed ? 0.985 : 1, y: this.pressed ? 0.985 : 1 })
+    .animation({ duration: Dur.fast, curve: SpringSnappy })
+    .onTouch((e) => {
+      if (e.type === TouchType.Down) this.pressed = true
+      else if (e.type === TouchType.Up || e.type === TouchType.Cancel) this.pressed = false
     })
-    .border(this.isConnected() ? { width: { left: 4 }, color: { left: '#22C55E' } } : { width: 0 })
   }
 }

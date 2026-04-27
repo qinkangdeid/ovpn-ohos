@@ -3,6 +3,12 @@
 import { picker, fileIo as fs, fileUri } from '@kit.CoreFileKit';
 import { BasicDataSource, showToast } from './Common';
 import { VpnItem } from './VpnItem';
+import {
+  Palette,
+  Radius,
+  SpringSnappy,
+  Dur
+} from './Theme';
 
 interface ItemData {
   name: string
@@ -14,6 +20,7 @@ interface ItemData {
 export struct ConfigsTab {
   private data: BasicDataSource<ItemData> = new BasicDataSource<ItemData>();
   @State configCount: number = 0;
+  @State importPressed: boolean = false;
 
   getDir(): string {
     return this.getUIContext().getHostContext()?.filesDir + '/ovpn'
@@ -40,32 +47,45 @@ export struct ConfigsTab {
 
   build() {
     Column() {
-      // 顶部 + 计数
+      // === 顶部行：标题 + 计数药丸 ===
       Row() {
         Text('VPN 配置')
-          .fontSize(14)
+          .fontSize(13)
           .fontWeight(FontWeight.Medium)
-          .fontColor('#374151')
+          .fontColor(Palette.textSecondary)
+          .letterSpacing(0.5)
         Blank()
         if (this.configCount > 0) {
-          Text(`${this.configCount}`)
-            .fontSize(11)
-            .fontColor('#6B7280')
-            .backgroundColor('#FFFFFF')
-            .borderRadius(10)
-            .padding({ left: 10, right: 10, top: 2, bottom: 2 })
+          Row({ space: 4 }) {
+            Column()
+              .width(5)
+              .height(5)
+              .borderRadius(2.5)
+              .backgroundColor(Palette.primary)
+            Text(`${this.configCount}`)
+              .fontSize(11)
+              .fontColor(Palette.primaryDeep)
+              .fontWeight(FontWeight.Medium)
+          }
+          .padding({ left: 8, right: 10, top: 3, bottom: 3 })
+          .backgroundColor(Palette.primarySoft)
+          .borderRadius(Radius.pill)
         }
       }
       .width('92%')
       .padding({ top: 14, bottom: 8 })
 
-      // 列表 / 空状态
+      // === 列表 / 空态 ===
       if (this.configCount > 0) {
         List() {
           LazyForEach(this.data, (item: ItemData) => {
             ListItem() {
               VpnItem(item)
-            }.width('100%')
+            }
+            .width('100%')
+            // 入场淡入（保守用 OPACITY 单效果，避免 combine 兼容性风险）
+            .transition(TransitionEffect.OPACITY
+              .animation({ duration: Dur.slow, curve: Curve.EaseOut }))
           })
         }
         .width('100%')
@@ -73,20 +93,29 @@ export struct ConfigsTab {
         .padding({ bottom: 4 })
       } else {
         Column() {
+          // 空态：浅色圆 + 文档图标
           Stack() {
-            Circle({ width: 88, height: 88 })
-              .fill('#EEF2FF')
+            Column()
+              .width(120)
+              .height(120)
+              .borderRadius(60)
+              .linearGradient({
+                angle: 135,
+                colors: [['#EEF2FF', 0.0], ['#E0E7FF', 1.0]]
+              })
             Text('📂')
-              .fontSize(38)
+              .fontSize(46)
           }
+
           Text('还没有配置')
-            .fontSize(15)
-            .fontColor('#374151')
+            .fontSize(16)
+            .fontColor(Palette.textPrimary)
             .fontWeight(FontWeight.Medium)
-            .margin({ top: 16 })
+            .margin({ top: 22 })
+
           Text('点击下方按钮导入 .ovpn 文件')
             .fontSize(12)
-            .fontColor('#9CA3AF')
+            .fontColor(Palette.textMuted)
             .margin({ top: 6 })
         }
         .width('100%')
@@ -94,26 +123,48 @@ export struct ConfigsTab {
         .justifyContent(FlexAlign.Center)
       }
 
-      // 导入按钮
-      Button() {
-        Row() {
+      // === 导入按钮（玻璃质感渐变 + 按下回弹） ===
+      Stack() {
+        Column()
+          .width('100%')
+          .height(54)
+          .borderRadius(Radius.md)
+          .linearGradient({
+            angle: 135,
+            colors: [['#3B82F6', 0.0], ['#2563EB', 1.0]]
+          })
+
+        // 顶部高光
+        Column()
+          .width('100%')
+          .height(54)
+          .borderRadius(Radius.md)
+          .linearGradient({
+            angle: 180,
+            colors: [['#FFFFFF33', 0.0], ['#FFFFFF00', 0.5]]
+          })
+
+        Row({ space: 10 }) {
           Text('+')
-            .fontSize(20)
+            .fontSize(22)
             .fontColor(Color.White)
             .fontWeight(FontWeight.Bold)
           Text('导入 .ovpn 配置')
             .fontSize(15)
             .fontWeight(FontWeight.Medium)
             .fontColor(Color.White)
-            .margin({ left: 8 })
         }
       }
       .width('92%')
-      .height(50)
-      .backgroundColor('#3B82F6')
-      .borderRadius(14)
-      .shadow({ radius: 14, color: '#3B82F644', offsetY: 6 })
-      .margin({ bottom: 16 })
+      .height(54)
+      .shadow({ radius: 18, color: '#2563EB66', offsetY: 8 })
+      .margin({ bottom: 18 })
+      .scale({ x: this.importPressed ? 0.97 : 1, y: this.importPressed ? 0.97 : 1 })
+      .animation({ duration: Dur.fast, curve: SpringSnappy })
+      .onTouch((e) => {
+        if (e.type === TouchType.Down) this.importPressed = true
+        else if (e.type === TouchType.Up || e.type === TouchType.Cancel) this.importPressed = false
+      })
       .onClick(async () => {
         try {
           const dp = new picker.DocumentViewPicker();
