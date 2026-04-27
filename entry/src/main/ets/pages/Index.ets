@@ -43,14 +43,22 @@ try {
         }
         if (data.event === 'ovpn.CONNECTED' && data.data) {
           const s = data.data as string
-          const d = JSON.parse(s) as connectData;
-          hilog.info(0x0000, TAG, `Connected: ${d.info}`);
-          showToast(ctx, `已连接: ${d.info}`, 2400);
+          let d: connectData | null = null
+          try {
+            d = JSON.parse(s) as connectData
+          } catch (parseErr) {
+            // 订阅器抛异常会被 NAPI 抛回 event loop 直接 kill 进程,这里兜住保命
+            hilog.error(0x0000, TAG, `CONNECTED payload parse fail: ${parseErr}, raw: ${s}`)
+          }
+          if (d) {
+            hilog.info(0x0000, TAG, `Connected: ${d.info}`)
+            showToast(ctx, `已连接: ${d.info}`, 2400)
+          }
           const busy = AppStorage.get<string>('vpn.busyName') ?? ''
           AppStorage.setOrCreate('vpn.activeName', busy)
           AppStorage.setOrCreate('vpn.connectedAt', Date.now())
           AppStorage.setOrCreate('vpn.busyName', '')
-          if (d.proxy?.host) {
+          if (d?.proxy?.host) {
             setVpnNet(d.proxy)
           }
           return;

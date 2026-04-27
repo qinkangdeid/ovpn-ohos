@@ -224,7 +224,10 @@ public:
             writer["indentation"] = ""; // Set the indentation to an empty string
             std::string v = Json::writeString(writer, json);
             auto info = new char[v.length() + 1];
-            v.copy(info, v.length());
+            // std::string::copy 不写终止符，下游 strlen 会越界读到堆里的脏字节，
+            // 导致 JS 端 JSON.parse 抛 "Remaining Text Before Return" 把进程整死。
+            std::memcpy(info, v.data(), v.length());
+            info[v.length()] = '\0';
 
             napi_acquire_threadsafe_function(tsfn_connected);
             napi_call_threadsafe_function(tsfn_connected, info, napi_tsfn_blocking);
